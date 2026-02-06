@@ -1,0 +1,40 @@
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+  datasource:
+    url: ${UNIBPM_DATASOURCE_URL}
+    username: ${UNIBPM_DATASOURCE_USERNAME}
+    password: ${UNIBPM_DATASOURCE_PASSWORD}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${identity.keycloak.front-url}/realms/unibpm
+          jwk-set-uri: ${identity.keycloak.base-url}/realms/${identity.keycloak.realm}/protocol/openid-connect/certs
+      client:
+        registration:
+          keycloak:
+            client-id: ${UNIBPM_CLIENT_ID}
+            client-secret: ${UNIBPM_CLIENT_SECRET}
+            authorization-grant-type: client_credentials
+            provider: keycloak
+        provider:
+          keycloak:
+            user-name-attribute: preferred_username
+            token-uri: ${identity.keycloak.base-url}/realms/${identity.keycloak.realm}/protocol/openid-connect/token
+identity:
+  keycloak:
+    base-url: ${KEYCLOAK_BASE_URL}
+    realm: ${KEYCLOAK_REALM}
+    front-client-registration-id: ${UNIBPM_FRONT_CLIENT_ID}
+    front-url: ${KEYCLOAK_EXTERNAL_URL}
+camunda-client:
+  rest-api-url: ${CAMUNDA_REST_API_URL}
+  rest-api-username: ${CAMUNDA_LOGIN}
+  rest-api-password: ${CAMUNDA_PASSWORD}
+application:
+  admin-role-name: ROLE_default-roles-unibpm
+
+logging:
+  level:
+    com.reunico.unibpm: DEBUG
