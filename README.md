@@ -167,3 +167,5 @@ docker compose down
 ```bash
 docker compose down -v
 ```
+
+- [Инструкция по установке](INSTALLER_INSTRUCTION.md)
