@@ -21,8 +21,8 @@
 ### 1) Скачать и развернуть дистрибутив
 
 ```bash
-git clone <REPO_URL> uni-prod-installer
-cd uni-prod-installer
+git clone git@github.com:Reunico/unibpm-community-installer.git
+cd unibpm-community-installer
 
 cp .env.example .env
 nano .env
