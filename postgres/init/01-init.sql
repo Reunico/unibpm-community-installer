@@ -13,21 +13,11 @@ BEGIN
   END IF;
 END $$;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'unibpm') THEN
-    CREATE DATABASE unibpm OWNER unibpm;
-  END IF;
+SELECT format('CREATE DATABASE %I OWNER %I', 'unibpm', 'unibpm')
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'unibpm') \gexec;
 
-  IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'camunda') THEN
-    CREATE DATABASE camunda OWNER camunda;
-  END IF;
+SELECT format('CREATE DATABASE %I OWNER %I', 'camunda', 'camunda')
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'camunda') \gexec;
 
-  IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'keycloak') THEN
-    CREATE DATABASE keycloak OWNER keycloak;
-  END IF;
-END $$;
-
-GRANT ALL PRIVILEGES ON DATABASE unibpm TO unibpm;
-GRANT ALL PRIVILEGES ON DATABASE camunda TO camunda;
-GRANT ALL PRIVILEGES ON DATABASE keycloak TO keycloak;
+SELECT format('CREATE DATABASE %I OWNER %I', 'keycloak', 'keycloak')
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'keycloak') \gexec;
