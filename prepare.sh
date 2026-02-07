@@ -115,7 +115,7 @@ require_var KEYCLOAK_EXTERNAL_URL
 # --------------------------------------------------
 # Keycloak: wait for realm and fetch client secrets
 # --------------------------------------------------
-KEYCLOAK_HOST_URL="http://${KEYCLOAK_HOST}:${KEYCLOAK_PUBLIC_PORT}${KEYCLOAK_PATH}"
+KEYCLOAK_HOST_URL="${KEYCLOAK_BASE_URL%/}"
 
 wait_for_url "${KEYCLOAK_HOST_URL}/realms/${KEYCLOAK_REALM}" "Keycloak realm '${KEYCLOAK_REALM}'"
 

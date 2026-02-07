@@ -1,6 +1,8 @@
 # UniBPM Community — Getting Started
 
-Этот дистрибутив **из коробки** поднимает полный стек (ничего не отключается):
+**Community-дистрибутив содержит все компоненты решения и запускается “всё включено”.**
+Это осознанное решение: так проще поддержка, диагностика и воспроизводимость окружения у клиентов.
+
 - PostgreSQL
 - Kafka
 - Keycloak
@@ -21,7 +23,7 @@
 ### 1) Скачать и развернуть дистрибутив
 
 ```bash
-git clone git@github.com:Reunico/unibpm-community-installer.git
+git clone https://github.com/Reunico/unibpm-community-installer.git
 cd unibpm-community-installer
 
 cp .env.example .env

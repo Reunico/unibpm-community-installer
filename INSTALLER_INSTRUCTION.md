@@ -10,8 +10,11 @@
 - Docker Engine 20+
 - Docker Compose v2 (`docker compose version`)
 - Доступ к registry (если образы приватные)
+- (опционально) Git — нужен только если вы скачиваете дистрибутив через `git clone`.
+  Если Git не установлен, можно скачать архив релиза/ветки и распаковать.
 
 ### Для Edge+TLS
+
 - Публичный IP VM
 - Открыты порты:
   - 80/tcp (обязательно для Let’s Encrypt HTTP-01)
@@ -37,6 +40,8 @@
 ## 3) Порядок запуска (как работает installer)
 
 Запуск выполняет `install.sh`:
+
+### install.sh можно запускать повторно - существующие volume и данные не удаляются.
 
 1) Загружает `.env`
 2) Вычисляет и экспортирует:
@@ -87,6 +92,9 @@ docker compose ps
 ### 4.2 Edge (VM/облако с DNS)
 
 #### DNS
+
+####  ⚠️ UniBPM и Keycloak ОБЯЗАТЕЛЬНО на DNS
+
 Минимальный набор доменов:
 - `UNIBPM_DOMAIN` (например `unibpm.example.com`) → IP VM
 - `KEYCLOAK_DOMAIN` (например `auth.example.com`) → IP VM
@@ -125,6 +133,7 @@ NGINX_HTTPS_PORT=443
 ---
 
 ## 5) Обновление и перезапуск
+
 
 ### Перезапуск
 ```bash
