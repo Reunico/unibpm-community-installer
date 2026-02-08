@@ -23,8 +23,6 @@ services:
     volumes:
       - ./letsencrypt/www:/var/www/certbot
       - ./letsencrypt/conf:/etc/letsencrypt
-    entrypoint: /bin/sh -c
-    command: "echo 'certbot ready'"
     restart: "no"
 
   postgres:

@@ -84,6 +84,9 @@ if [ "$DEPLOY_MODE" = "edge" ] && [ "$ENABLE_TLS" = "true" ]; then
     CERT_DOMAINS+=("${CAMUNDA_DOMAIN}")
   fi
 
+
+  CERT_PRIMARY_DOMAIN="${CERT_DOMAINS[0]}"
+
   echo "🐳 Starting nginx for ACME challenge"
   docker compose up -d nginx
 
