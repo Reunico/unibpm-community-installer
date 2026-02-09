@@ -1,7 +1,3 @@
-# Edge (single-domain path routing) TLS reverse-proxy
-# - Port 80 serves ACME challenges and redirects everything else to HTTPS
-# - Port 443 terminates TLS and proxies by path
-
 server {
   listen 80;
   server_name ${UNIBPM_DOMAIN};
@@ -32,7 +28,7 @@ server {
   }
 
   location ^~ ${CAMUNDA_PATH}/ {
-    proxy_pass http://camunda-bpm-7:8080/;
+    proxy_pass http://camunda-bpm-7:8080;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -41,7 +37,7 @@ server {
   }
 
   location / {
-    proxy_pass http://unibpm-frontend:8080;
+    proxy_pass http://unibpm-frontend:${FRONTEND_HTTP_PORT};
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

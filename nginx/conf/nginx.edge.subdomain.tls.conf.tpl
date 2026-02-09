@@ -19,7 +19,7 @@ server {
   ssl_certificate_key /etc/letsencrypt/live/${CERT_PRIMARY_DOMAIN}/privkey.pem;
 
   location / {
-    proxy_pass http://unibpm-frontend:8080;
+    proxy_pass http://unibpm-frontend:${FRONTEND_HTTP_PORT};
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -33,6 +33,7 @@ server {
 
   location ^~ /.well-known/acme-challenge/ {
     root /var/www/certbot;
+    default_type "text/plain";
     try_files $uri =404;
   }
 
@@ -56,5 +57,6 @@ server {
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-Prefix ${KEYCLOAK_PATH};
   }
 }
