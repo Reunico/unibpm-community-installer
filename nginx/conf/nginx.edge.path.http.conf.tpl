@@ -3,8 +3,9 @@ server {
   server_name ${UNIBPM_DOMAIN};
 
   location ^~ /.well-known/acme-challenge/ {
-    root /var/www/certbot;
-    try_files $uri =404;
+      root /var/www/certbot;
+      default_type "text/plain";
+      try_files $uri =404;
   }
 
   location ^~ ${KEYCLOAK_PATH}/ {
