@@ -235,7 +235,7 @@ if [ "${DEPLOY_MODE:-local}" = "edge" ]; then
   if [ "${ENABLE_TLS:-false}" = "true" ]; then SCHEME="https"; fi
 
   if [ -n "${UNIBPM_DOMAIN:-}" ]; then
-    ALLOWED_ORIGINS+=("${SCHEME}://${UNIBPM_DOMAIN}")
+    ALLOWED_ORIGINS+=("${SCHEME}://${UNIBPM_DOMAIN}/")
   fi
 
   if [ -n "${EXTRA_ALLOWED_ORIGINS:-}" ]; then
