@@ -224,6 +224,9 @@ CAMUNDA_CLIENT_SECRET=$(get_client_secret "$CAMUNDA_CLIENT_ID")
 export UNIBPM_CLIENT_SECRET CAMUNDA_CLIENT_SECRET
 echo "✔ Client secrets obtained"
 
+# --------------------------------------------------
+# WebSocket (STOMP): endpoint + allowed origins
+# --------------------------------------------------
 WS_ENDPOINT="${WS_ENDPOINT:-/stomp}"
 
 ALLOWED_ORIGINS=()
@@ -234,8 +237,9 @@ if [ "${DEPLOY_MODE:-local}" = "edge" ]; then
   SCHEME="http"
   if [ "${ENABLE_TLS:-false}" = "true" ]; then SCHEME="https"; fi
 
+
   if [ -n "${UNIBPM_DOMAIN:-}" ]; then
-    ALLOWED_ORIGINS+=("${SCHEME}://${UNIBPM_DOMAIN}/")
+    ALLOWED_ORIGINS+=("${SCHEME}://${UNIBPM_DOMAIN}")
   fi
 
   if [ -n "${EXTRA_ALLOWED_ORIGINS:-}" ]; then
@@ -247,14 +251,13 @@ if [ "${DEPLOY_MODE:-local}" = "edge" ]; then
   fi
 fi
 
-uniq_origins=$(printf "%s\n" "${ALLOWED_ORIGINS[@]}" | awk 'NF && !seen[$0]++')
+WS_ALLOWED_ORIGINS_JSON="$(
+  printf "%s\n" "${ALLOWED_ORIGINS[@]}" \
+    | awk 'NF {gsub(/[[:space:]]+$/, ""); gsub(/^[[:space:]]+/, ""); if (!seen[$0]++) print $0 }' \
+    | jq -R . | jq -cs .
+)"
 
-# Превращаем в YAML-список
-WS_ALLOWED_ORIGINS_JSON=$(printf "%s\n" "${ALLOWED_ORIGINS[@]}" \
-  | awk 'NF && !seen[$0]++' \
-  | jq -R . | jq -s .)
-
-export WS_ALLOWED_ORIGINS_JSON
+export WS_ENDPOINT WS_ALLOWED_ORIGINS_JSON
 
 # --------------------------------------------------
 # Generate application configs
