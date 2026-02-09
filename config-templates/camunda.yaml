@@ -8,18 +8,7 @@ spring:
     url: ${CAMUNDA_DATASOURCE_URL}
     username: ${CAMUNDA_DATASOURCE_USERNAME}
     password: ${CAMUNDA_DATASOURCE_PASSWORD}
-  security:
-    oauth2:
-      client:
-        registration:
-          keycloak:
-            client-id: ${CAMUNDA_CLIENT_ID}
-            client-secret: ${CAMUNDA_CLIENT_SECRET}
 camunda.bpm:
   admin-user:
     id: ${CAMUNDA_LOGIN}
     password: ${CAMUNDA_PASSWORD}
-identity:
-  keycloak:
-    base-url: ${KEYCLOAK_BASE_URL}
-    realm: ${KEYCLOAK_REALM}

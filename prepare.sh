@@ -149,6 +149,75 @@ get_client_secret() {
   echo "$SECRET"
 }
 
+EDGE_ROUTING_MODE=${EDGE_ROUTING_MODE:-subdomain}
+UNIBPM_DOMAIN=${UNIBPM_DOMAIN:-unibpm.localhost}
+KEYCLOAK_DOMAIN=${KEYCLOAK_DOMAIN:-auth.localhost}
+CAMUNDA_DOMAIN=${CAMUNDA_DOMAIN:-camunda.localhost}
+CAMUNDA_PATH=${CAMUNDA_PATH:-/camunda}
+KEYCLOAK_PATH=${KEYCLOAK_PATH:-/keycloak}
+
+get_client_uuid() {
+  local CLIENT_ID_NAME="$1"
+  local CLIENT_JSON
+  CLIENT_JSON=$(curl -sf -H "Authorization: Bearer $TOKEN" \
+    "${KEYCLOAK_HOST_URL}/admin/realms/${KEYCLOAK_REALM}/clients?clientId=${CLIENT_ID_NAME}")
+  echo "$CLIENT_JSON" | jq -r '.[0].id'
+}
+
+update_client_redirects() {
+  local CLIENT_ID_NAME="$1"
+  local REDIRECTS_JSON="$2"
+  local ORIGINS_JSON="$3"
+
+  local CLIENT_UUID
+  CLIENT_UUID=$(get_client_uuid "$CLIENT_ID_NAME")
+  if [ -z "$CLIENT_UUID" ] || [ "$CLIENT_UUID" = "null" ]; then
+    echo "❌ Client $CLIENT_ID_NAME not found in realm ${KEYCLOAK_REALM}"
+    exit 1
+  fi
+
+  local CLIENT_REP UPDATED
+  CLIENT_REP=$(curl -sf -H "Authorization: Bearer $TOKEN" \
+    "${KEYCLOAK_HOST_URL}/admin/realms/${KEYCLOAK_REALM}/clients/${CLIENT_UUID}")
+
+  UPDATED=$(echo "$CLIENT_REP" | jq \
+    --argjson redirects "$REDIRECTS_JSON" \
+    --argjson origins "$ORIGINS_JSON" \
+    '.redirectUris=$redirects | .webOrigins=$origins')
+
+  curl -sf -X PUT \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    "${KEYCLOAK_HOST_URL}/admin/realms/${KEYCLOAK_REALM}/clients/${CLIENT_UUID}" \
+    -d "$UPDATED" >/dev/null
+
+  echo "✔ Updated redirectUris/webOrigins for client: $CLIENT_ID_NAME"
+}
+
+if [ "${DEPLOY_MODE:-local}" = "edge" ]; then
+  SCHEME="http"
+  if [ "${ENABLE_TLS:-false}" = "true" ]; then SCHEME="https"; fi
+
+  UI_BASE="${SCHEME}://${UNIBPM_DOMAIN}"
+
+  REDIRECTS=$(jq -nc --arg ui "${UI_BASE}" \
+    '[($ui + "/*"), "https://oauth.pstmn.io/v1/callback"]')
+  ORIGINS=$(jq -nc --arg ui "${UI_BASE}" '[ $ui ]')
+
+  echo "▶ EDGE: updating redirectUris for '${UNIBPM_FRONT_CLIENT_ID}' => ${UI_BASE}/*"
+  update_client_redirects "${UNIBPM_FRONT_CLIENT_ID}" "$REDIRECTS" "$ORIGINS"
+
+  if [ "${EDGE_ROUTING_MODE}" = "path" ] && [ "${EXPOSE_CAMUNDA:-false}" = "true" ]; then
+    CAM_REDIRECTS=$(jq -nc --arg ui "${UI_BASE}" --arg p "${CAMUNDA_PATH}" \
+      '[($ui + $p + "/*")]')
+    CAM_ORIGINS=$(jq -nc --arg ui "${UI_BASE}" '[ $ui ]')
+    echo "▶ EDGE(path): updating redirectUris for '${CAMUNDA_CLIENT_ID}' => ${UI_BASE}${CAMUNDA_PATH}/*"
+    update_client_redirects "${CAMUNDA_CLIENT_ID}" "$CAM_REDIRECTS" "$CAM_ORIGINS"
+  fi
+else
+  echo "▶ LOCAL: skipping redirectUris update (not needed)"
+fi
+
 echo "▶ Fetching client secrets from Keycloak"
 UNIBPM_CLIENT_SECRET=$(get_client_secret "$UNIBPM_CLIENT_ID")
 CAMUNDA_CLIENT_SECRET=$(get_client_secret "$CAMUNDA_CLIENT_ID")
