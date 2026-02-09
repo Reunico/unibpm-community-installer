@@ -32,7 +32,7 @@ server {
 
   client_max_body_size 100m;
 
-  location ^~ /stomp {
+  location ^~ /stomp/ {
     proxy_pass http://unibpm_frontend;
     proxy_http_version 1.1;
 
