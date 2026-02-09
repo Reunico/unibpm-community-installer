@@ -97,7 +97,7 @@ CAMUNDA_REST_API_URL=${CAMUNDA_REST_API_URL:-http://camunda-bpm-7:8080/engine-re
 
 # Keycloak identity
 KEYCLOAK_REALM=${KEYCLOAK_REALM:-unibpm}
-KEYCLOAK_BASE_URL=${KEYCLOAK_BASE_URL:-http://keycloak:8080/keycloak}
+KEYCLOAK_INTERNAL_URL=${KEYCLOAK_INTERNAL_URL:-http://localhost:8082/keycloak}
 KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}
 KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-admin}
 
@@ -115,7 +115,7 @@ require_var KEYCLOAK_EXTERNAL_URL
 # --------------------------------------------------
 # Keycloak: wait for realm and fetch client secrets
 # --------------------------------------------------
-KEYCLOAK_HOST_URL="${KEYCLOAK_BASE_URL%/}"
+KEYCLOAK_HOST_URL="${KEYCLOAK_INTERNAL_URL%/}"
 
 wait_for_url "${KEYCLOAK_HOST_URL}/realms/${KEYCLOAK_REALM}" "Keycloak realm '${KEYCLOAK_REALM}'"
 
