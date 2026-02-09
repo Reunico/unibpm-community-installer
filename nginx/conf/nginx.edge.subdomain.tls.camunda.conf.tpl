@@ -1,11 +1,15 @@
+upstream unibpm_frontend {
+  server unibpm-frontend:80;
+}
+
 server {
   listen 80;
   server_name ${UNIBPM_DOMAIN};
 
   location ^~ /.well-known/acme-challenge/ {
-      root /var/www/certbot;
-      default_type "text/plain";
-      try_files $uri =404;
+    root /var/www/certbot;
+    default_type "text/plain";
+    try_files $uri =404;
   }
 
   location / { return 301 https://$host$request_uri; }
@@ -14,15 +18,37 @@ server {
 server {
   listen 443 ssl;
   server_name ${UNIBPM_DOMAIN};
+  client_max_body_size 32M;
 
-  ssl_certificate     /etc/letsencrypt/live/${CERT_PRIMARY_DOMAIN}/fullchain.pem;
-  ssl_certificate_key /etc/letsencrypt/live/${CERT_PRIMARY_DOMAIN}/privkey.pem;
+  ssl_certificate         /etc/letsencrypt/live/${CERT_PRIMARY_DOMAIN}/fullchain.pem;
+  ssl_certificate_key     /etc/letsencrypt/live/${CERT_PRIMARY_DOMAIN}/privkey.pem;
+  ssl_trusted_certificate /etc/letsencrypt/live/${CERT_PRIMARY_DOMAIN}/chain.pem;
+
+  ssl_dhparam /etc/letsencrypt/dhparams/dhparam.pem;
+
+  location ^~ /stomp {
+    proxy_pass http://unibpm_frontend;
+    proxy_http_version 1.1;
+
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Real-IP $remote_addr;
+
+    proxy_read_timeout 86400;
+    proxy_send_timeout 86400;
+  }
 
   location / {
-    proxy_pass http://unibpm-frontend:${FRONTEND_HTTP_PORT};
+    proxy_pass http://unibpm_frontend;
+    proxy_read_timeout 90;
+
     proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Real-IP $remote_addr;
   }
 }
