@@ -224,6 +224,38 @@ CAMUNDA_CLIENT_SECRET=$(get_client_secret "$CAMUNDA_CLIENT_ID")
 export UNIBPM_CLIENT_SECRET CAMUNDA_CLIENT_SECRET
 echo "✔ Client secrets obtained"
 
+WS_ENDPOINT="${WS_ENDPOINT:-/stomp}"
+
+ALLOWED_ORIGINS=()
+ALLOWED_ORIGINS+=("http://localhost:3001")
+ALLOWED_ORIGINS+=("http://localhost:${BACKEND_PUBLIC_PORT:-8099}")
+
+if [ "${DEPLOY_MODE:-local}" = "edge" ]; then
+  SCHEME="http"
+  if [ "${ENABLE_TLS:-false}" = "true" ]; then SCHEME="https"; fi
+
+  if [ -n "${UNIBPM_DOMAIN:-}" ]; then
+    ALLOWED_ORIGINS+=("${SCHEME}://${UNIBPM_DOMAIN}")
+  fi
+
+  if [ -n "${EXTRA_ALLOWED_ORIGINS:-}" ]; then
+    IFS=',' read -ra EXTRA <<< "${EXTRA_ALLOWED_ORIGINS}"
+    for o in "${EXTRA[@]}"; do
+      o="${o#"${o%%[![:space:]]*}"}"; o="${o%"${o##*[![:space:]]}"}"
+      [ -n "$o" ] && ALLOWED_ORIGINS+=("$o")
+    done
+  fi
+fi
+
+uniq_origins=$(printf "%s\n" "${ALLOWED_ORIGINS[@]}" | awk 'NF && !seen[$0]++')
+
+# Превращаем в YAML-список
+WS_ALLOWED_ORIGINS_JSON=$(printf "%s\n" "${ALLOWED_ORIGINS[@]}" \
+  | awk 'NF && !seen[$0]++' \
+  | jq -R . | jq -s .)
+
+export WS_ALLOWED_ORIGINS_JSON
+
 # --------------------------------------------------
 # Generate application configs
 # --------------------------------------------------

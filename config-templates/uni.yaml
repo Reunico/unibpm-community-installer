@@ -34,7 +34,9 @@ camunda-client:
   rest-api-password: ${CAMUNDA_PASSWORD}
 application:
   admin-role-name: ROLE_default-roles-unibpm
-
 logging:
   level:
     com.reunico.unibpm: DEBUG
+ws:
+  endpoint: ${WS_ENDPOINT}
+  allowed-origins: ${WS_ALLOWED_ORIGINS_JSON}
