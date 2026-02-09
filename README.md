@@ -13,7 +13,7 @@
 
 Поддерживаются 2 режима запуска:
 
-1) **Local (для теста на ноутбуке/локально)** — доступ по портам `localhost`  
+1) **Local (для теста на ноутбуке/локально)** — доступ по портам `localhost`
 2) **Edge (для VM/облака с DNS)** — доступ по доменам (**UniBPM + Keycloak обязательно**, **Camunda по желанию**) и опционально TLS через Let’s Encrypt
 
 ---
@@ -64,15 +64,40 @@ docker compose logs -f keycloak
 
 ## Режим B — Edge (VM/облако с DNS)
 
+---
+
+## Edge: варианты роутинга (subdomain vs path)
+
+В режиме **Edge** поддерживаются **2 схемы публикации**:
+
+### 1) Subdomain
+Отдельные домены:
+- UI: `https://<UNIBPM_DOMAIN>/`
+- Keycloak: `https://<KEYCLOAK_DOMAIN><KEYCLOAK_PATH>/` (обычно `/keycloak`)
+- Camunda (опционально): `https://<CAMUNDA_DOMAIN>/`
+
+Подходит, когда есть возможность завести 2–3 DNS A-записи.
+
+### 2) Path (всё на одном домене)
+Один домен:
+- UI: `https://<UNIBPM_DOMAIN>/`
+- Keycloak: `https://<UNIBPM_DOMAIN><KEYCLOAK_PATH>/`
+- Camunda (опционально): `https://<UNIBPM_DOMAIN><CAMUNDA_PATH>/`
+
+Подходит, когда можно завести только 1 DNS A-запись.
+
+> В обоих вариантах `KEYCLOAK_PATH` и `CAMUNDA_PATH` должны начинаться с `/`.
+
+
 ### Что нужно заранее
-1) **Публичный IP** у VM  
+1) **Публичный IP** у VM
 2) Открытые порты (Security Group / Firewall):
-   - `80/tcp` (обязательно для Let’s Encrypt HTTP-01)
-   - `443/tcp` (если включаете TLS)
+    - `80/tcp` (обязательно для Let’s Encrypt HTTP-01)
+    - `443/tcp` (если включаете TLS)
 3) DNS A-записи на IP VM:
-   - `UNIBPM_DOMAIN` → IP VM (**обязательно**)
-   - `KEYCLOAK_DOMAIN` → IP VM (**обязательно**)
-   - `CAMUNDA_DOMAIN` → IP VM (**только если EXPOSE_CAMUNDA=true**)
+    - `UNIBPM_DOMAIN` → IP VM (**обязательно**)
+    - `KEYCLOAK_DOMAIN` → IP VM (**обязательно**)
+    - `CAMUNDA_DOMAIN` → IP VM (**только если EXPOSE_CAMUNDA=true**)
 
 ### Настройки `.env` (пример)
 
@@ -94,6 +119,25 @@ NGINX_HTTP_PORT=80
 NGINX_HTTPS_PORT=443
 ```
 
+
+### Важные переменные для Edge
+
+```env
+# Схема роутинга в Edge: subdomain | path
+EDGE_ROUTING_MODE=subdomain
+
+# Путь, по которому публикуется Keycloak (и во внешнем URL тоже)
+KEYCLOAK_PATH=/keycloak
+
+# Путь, по которому публикуется Camunda в режиме path
+CAMUNDA_PATH=/camunda
+
+# Доп. origins для WebSocket/CORS (через запятую)
+# EXTRA_ALLOWED_ORIGINS=https://id.reunico.com,https://some.portal.example.com
+EXTRA_ALLOWED_ORIGINS=
+```
+
+
 ### Запуск
 ```bash
 ./install.sh
@@ -103,12 +147,26 @@ NGINX_HTTPS_PORT=443
 - UniBPM: `https://unibpm.example.com/` (или `http://...` если `ENABLE_TLS=false`)
 - Keycloak: `https://auth.example.com/keycloak/`
 - Camunda:
-  - если `EXPOSE_CAMUNDA=true` → `https://camunda.example.com/`
-  - если `false` → Camunda работает внутри docker-сети; для доступа используйте порт `CAMUNDA_PUBLIC_PORT` (если он открыт) или SSH-туннель
+    - если `EXPOSE_CAMUNDA=true` → `https://camunda.example.com/`
+    - если `false` → Camunda работает внутри docker-сети; для доступа используйте порт `CAMUNDA_PUBLIC_PORT` (если он открыт) или SSH-туннель
 
 ---
 
 ## Диагностика (самые полезные команды)
+
+### WebSocket (/stomp) и Safari/iframe.html
+
+UniBPM использует WebSocket endpoint (по умолчанию `/stomp`).  
+Чтобы не ловить ошибки в браузерах и при работе через DNS/TLS, важно чтобы в `ws.allowed-origins`
+попадали:
+- `http://localhost:3001` (dev)
+- `http://localhost:<BACKEND_PUBLIC_PORT>` (локальный backend)
+- `https://<UNIBPM_DOMAIN>` (edge)
+- любые дополнительные порталы/домен(ы), если UI встраивается или проксируется
+
+Эти значения генерируются installer-ом из переменных `.env` (см. `EXTRA_ALLOWED_ORIGINS`).
+
+
 
 ### Статус контейнеров
 ```bash
