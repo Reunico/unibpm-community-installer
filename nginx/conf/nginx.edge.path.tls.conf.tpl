@@ -32,8 +32,8 @@ server {
 
   client_max_body_size 100m;
 
-  location /stomp/ {
-    proxy_pass http://unibpm_frontend;
+  location ^~ /stomp/ {
+    proxy_pass http://unibpm:8099/stomp/;
     proxy_http_version 1.1;
 
     proxy_set_header Upgrade $http_upgrade;
