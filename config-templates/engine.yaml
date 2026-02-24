@@ -25,8 +25,8 @@ spring:
             scope: openid,profile,email
         provider:
           keycloak:
-            issuer-uri: ${KEYCLOAK_EXTERNAL_URL}/realms/${KEYCLOAK_REALM}  # https://id.reunico.com/realms/reunico.com
+            issuer-uri: ${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}  # https://id.reunico.com/realms/reunico.com
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_EXTERNAL_URL}/realms/${KEYCLOAK_REALM}
-          jwk-set-uri: ${KEYCLOAK_EXTERNAL_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs             # https://.../protocol/openid-connect/certs
+          issuer-uri: ${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}
+          jwk-set-uri: ${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs             # https://.../protocol/openid-connect/certs

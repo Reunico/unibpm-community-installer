@@ -208,12 +208,49 @@ if [ "${DEPLOY_MODE:-local}" = "edge" ]; then
   echo "▶ EDGE: updating redirectUris for '${UNIBPM_FRONT_CLIENT_ID}' => ${UI_BASE}/*"
   update_client_redirects "${UNIBPM_FRONT_CLIENT_ID}" "$REDIRECTS" "$ORIGINS"
 
-  if [ "${EDGE_ROUTING_MODE}" = "path" ] && [ "${EXPOSE_CAMUNDA:-false}" = "true" ]; then
-    CAM_REDIRECTS=$(jq -nc --arg ui "${UI_BASE}" --arg p "${CAMUNDA_PATH}" \
-      '[($ui + $p + "/*")]')
-    CAM_ORIGINS=$(jq -nc --arg ui "${UI_BASE}" '[ $ui ]')
-    echo "▶ EDGE(path): updating redirectUris for '${UNIBPM_CAMUNDA_CLIENT_ID}' => ${UI_BASE}${CAMUNDA_PATH}/*"
-    update_client_redirects "${UNIBPM_CAMUNDA_CLIENT_ID}" "$CAM_REDIRECTS" "$CAM_ORIGINS"
+  if [ "${EXPOSE_CAMUNDA:-false}" = "true" ]; then
+    CAMUNDA_PATH="${CAMUNDA_PATH:-/camunda}"
+
+    if [ "${DEPLOY_MODE:-local}" = "local" ]; then
+      CAM_REDIRECTS=$(jq -nc --arg l "http://localhost:${CAMUNDA_PUBLIC_PORT:-8081}" --arg p "$CAMUNDA_PATH" \
+        '[ ($l + $p + "/*"),
+           ($l + "/login/oauth2/code/keycloak"),
+           ($l + $p + "/login/oauth2/code/keycloak") ]')
+      CAM_ORIGINS=$(jq -nc --arg l "http://localhost:${CAMUNDA_PUBLIC_PORT:-8081}" '[ $l ]')
+
+      echo "▶ LOCAL: updating redirectUris for '${CAMUNDA_CLIENT_ID}' => http://localhost:${CAMUNDA_PUBLIC_PORT:-8081}${CAMUNDA_PATH}/* (+ oauth2 callback)"
+      update_client_redirects "${CAMUNDA_CLIENT_ID}" "$CAM_REDIRECTS" "$CAM_ORIGINS"
+
+    else
+      # edge
+      if [ "${EDGE_ROUTING_MODE:-path}" = "path" ]; then
+        # Camunda exposed under UI_BASE + CAMUNDA_PATH
+        CAM_REDIRECTS=$(jq -nc --arg ui "${UI_BASE}" --arg p "${CAMUNDA_PATH}" \
+          '[ ($ui + $p + "/*"),
+             ($ui + "/login/oauth2/code/keycloak"),
+             ($ui + $p + "/login/oauth2/code/keycloak") ]')
+
+        # webOrigin должен быть БЕЗ path
+        CAM_ORIGINS=$(jq -nc --arg ui "${UI_BASE}" '[ $ui ]')
+
+        echo "▶ EDGE(path): updating redirectUris for '${CAMUNDA_CLIENT_ID}' => ${UI_BASE}${CAMUNDA_PATH}/* (+ oauth2 callback)"
+        update_client_redirects "${CAMUNDA_CLIENT_ID}" "$CAM_REDIRECTS" "$CAM_ORIGINS"
+
+      else
+        # subdomain mode (Camunda отдельным доменом)
+        CAMUNDA_EXTERNAL="${PUBLIC_SCHEME}://${CAMUNDA_DOMAIN}"
+
+        CAM_REDIRECTS=$(jq -nc --arg c "${CAMUNDA_EXTERNAL}" --arg p "${CAMUNDA_PATH}" \
+          '[ ($c + $p + "/*"),
+             ($c + "/login/oauth2/code/keycloak"),
+             ($c + $p + "/login/oauth2/code/keycloak") ]')
+
+        CAM_ORIGINS=$(jq -nc --arg c "${CAMUNDA_EXTERNAL}" '[ $c ]')
+
+        echo "▶ EDGE(subdomain): updating redirectUris for '${CAMUNDA_CLIENT_ID}' => ${CAMUNDA_EXTERNAL}${CAMUNDA_PATH}/* (+ oauth2 callback)"
+        update_client_redirects "${CAMUNDA_CLIENT_ID}" "$CAM_REDIRECTS" "$CAM_ORIGINS"
+      fi
+    fi
   fi
 else
   echo "▶ LOCAL: skipping redirectUris update (not needed)"
