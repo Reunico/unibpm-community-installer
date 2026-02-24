@@ -264,11 +264,11 @@ export WS_ENDPOINT WS_ALLOWED_ORIGINS_JSON
 # --------------------------------------------------
 echo "▶ Generating application configuration files"
 
-mkdir -p generated/unibpm generated/camunda
-rm -f generated/unibpm/application.yaml generated/camunda/application.yml
+mkdir -p generated/unibpm generated/engine
+rm -f generated/unibpm/application.yaml generated/engine/application.yaml
 
-envsubst < config-templates/uni.yaml > generated/unibpm/application.yaml
-envsubst < config-templates/camunda.yaml > generated/camunda/application.yml
+envsubst < config-templates/unibpm.yaml > generated/unibpm/application.yaml
+envsubst < config-templates/engine.yaml > generated/engine/application.yaml
 
 echo "✔ Configuration files generated"
 echo "▶ prepare.sh finished successfully"
