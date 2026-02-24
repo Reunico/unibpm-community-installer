@@ -11,6 +11,10 @@ plugin.identity.keycloak:
 spring:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+  datasource:
+    url: ${CAMUNDA_DATASOURCE_URL}
+    username: ${CAMUNDA_DATASOURCE_USERNAME}
+    password: ${CAMUNDA_DATASOURCE_PASSWORD}
   security:
     oauth2:
       client:
