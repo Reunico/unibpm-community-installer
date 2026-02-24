@@ -224,14 +224,17 @@ if [ "${DEPLOY_MODE:-local}" = "edge" ]; then
     else
       # edge
       if [ "${EDGE_ROUTING_MODE:-path}" = "path" ]; then
-        # Camunda exposed under UI_BASE + CAMUNDA_PATH
-        CAM_REDIRECTS=$(jq -nc --arg ui "${UI_BASE}" --arg p "${CAMUNDA_PATH}" \
+        CAM_REDIRECTS=$(jq -nc \
+          --arg ui "${UI_BASE}" \
+          --arg ui_http "${UI_BASE/https:\/\//http://}" \
+          --arg p "${CAMUNDA_PATH}" \
           '[ ($ui + $p + "/*"),
              ($ui + "/login/oauth2/code/keycloak"),
-             ($ui + $p + "/login/oauth2/code/keycloak") ]')
+             ($ui + $p + "/login/oauth2/code/keycloak"),
+             ($ui_http + "/login/oauth2/code/keycloak"),
+             ($ui_http + $p + "/login/oauth2/code/keycloak") ]')
 
-        # webOrigin должен быть БЕЗ path
-        CAM_ORIGINS=$(jq -nc --arg ui "${UI_BASE}" '[ $ui ]')
+        CAM_ORIGINS=$(jq -nc --arg ui "${UI_BASE}" --arg ui_http "${UI_BASE/https:\/\//http://}" '[ $ui, $ui_http ]')
 
         echo "▶ EDGE(path): updating redirectUris for '${UNIBPM_CAMUNDA_CLIENT_ID}' => ${UI_BASE}${CAMUNDA_PATH}/* (+ oauth2 callback)"
         update_client_redirects "${UNIBPM_CAMUNDA_CLIENT_ID}" "$CAM_REDIRECTS" "$CAM_ORIGINS"
