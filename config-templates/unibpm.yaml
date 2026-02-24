@@ -19,8 +19,8 @@ spring:
             authorization-grant-type: client_credentials
             provider: keycloak
           unibpm-camunda:
-            client-id: ${UNIBPM_CAMUNDA_CLIENT_ID}
-            client-secret: ${UNIBPM_CAMUNDA_SECRET}
+            client-id: ${UNIBPM_CAMUNDA_REST_API_CLIENT_ID}
+            client-secret: ${UNIBPM_CAMUNDA_REST_API_SECRET}
             authorization-grant-type: client_credentials
             provider: keycloak
             scope: openid
