@@ -218,8 +218,8 @@ if [ "${DEPLOY_MODE:-local}" = "edge" ]; then
            ($l + $p + "/login/oauth2/code/keycloak") ]')
       CAM_ORIGINS=$(jq -nc --arg l "http://localhost:${CAMUNDA_PUBLIC_PORT:-8081}" '[ $l ]')
 
-      echo "▶ LOCAL: updating redirectUris for '${CAMUNDA_CLIENT_ID}' => http://localhost:${CAMUNDA_PUBLIC_PORT:-8081}${CAMUNDA_PATH}/* (+ oauth2 callback)"
-      update_client_redirects "${CAMUNDA_CLIENT_ID}" "$CAM_REDIRECTS" "$CAM_ORIGINS"
+      echo "▶ LOCAL: updating redirectUris for '${UNIBPM_CAMUNDA_CLIENT_ID}' => http://localhost:${CAMUNDA_PUBLIC_PORT:-8081}${CAMUNDA_PATH}/* (+ oauth2 callback)"
+      update_client_redirects "${UNIBPM_CAMUNDA_CLIENT_ID}" "$CAM_REDIRECTS" "$CAM_ORIGINS"
 
     else
       # edge
@@ -233,8 +233,8 @@ if [ "${DEPLOY_MODE:-local}" = "edge" ]; then
         # webOrigin должен быть БЕЗ path
         CAM_ORIGINS=$(jq -nc --arg ui "${UI_BASE}" '[ $ui ]')
 
-        echo "▶ EDGE(path): updating redirectUris for '${CAMUNDA_CLIENT_ID}' => ${UI_BASE}${CAMUNDA_PATH}/* (+ oauth2 callback)"
-        update_client_redirects "${CAMUNDA_CLIENT_ID}" "$CAM_REDIRECTS" "$CAM_ORIGINS"
+        echo "▶ EDGE(path): updating redirectUris for '${UNIBPM_CAMUNDA_CLIENT_ID}' => ${UI_BASE}${CAMUNDA_PATH}/* (+ oauth2 callback)"
+        update_client_redirects "${UNIBPM_CAMUNDA_CLIENT_ID}" "$CAM_REDIRECTS" "$CAM_ORIGINS"
 
       else
         # subdomain mode (Camunda отдельным доменом)
@@ -247,8 +247,8 @@ if [ "${DEPLOY_MODE:-local}" = "edge" ]; then
 
         CAM_ORIGINS=$(jq -nc --arg c "${CAMUNDA_EXTERNAL}" '[ $c ]')
 
-        echo "▶ EDGE(subdomain): updating redirectUris for '${CAMUNDA_CLIENT_ID}' => ${CAMUNDA_EXTERNAL}${CAMUNDA_PATH}/* (+ oauth2 callback)"
-        update_client_redirects "${CAMUNDA_CLIENT_ID}" "$CAM_REDIRECTS" "$CAM_ORIGINS"
+        echo "▶ EDGE(subdomain): updating redirectUris for '${UNIBPM_CAMUNDA_CLIENT_ID}' => ${CAMUNDA_EXTERNAL}${CAMUNDA_PATH}/* (+ oauth2 callback)"
+        update_client_redirects "${UNIBPM_CAMUNDA_CLIENT_ID}" "$CAM_REDIRECTS" "$CAM_ORIGINS"
       fi
     fi
   fi
