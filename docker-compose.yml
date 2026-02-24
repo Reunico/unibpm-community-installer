@@ -121,7 +121,7 @@ services:
     restart: unless-stopped
 
   unibpm-engine:
-    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-engine:7.21
+    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-engine:7.24
     platform: linux/amd64
     volumes:
       - ./generated/engine/application.yaml:/config/application.yaml:ro
