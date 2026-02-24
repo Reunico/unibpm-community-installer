@@ -1,34 +1,52 @@
-# UniBPM Community — Getting Started
+# UniBPM Community Installer
 
-**Community-дистрибутив содержит все компоненты решения и запускается “всё включено”.**
-Это осознанное решение: так проще поддержка, диагностика и воспроизводимость окружения у клиентов.
+Этот репозиторий — “всё включено” дистрибутив UniBPM Community, который поднимает полный стенд в Docker Compose.
+
+Почему так: один состав сервисов = проще поддержка, диагностика и воспроизводимость окружения.
+
+## Состав стенда
 
 - PostgreSQL
 - Kafka
 - Keycloak
 - UniBPM backend
 - UniBPM frontend
-- Camunda 7
-- Nginx (gateway для DNS/HTTPS)
+- Camunda 7 (движок)
+- Nginx (edge/gateway для доменов и HTTPS)
+- Certbot (только если включён TLS)
 
-Поддерживаются 2 режима запуска:
+---
 
-1) **Local (для теста на ноутбуке/локально)** — доступ по портам `localhost`
-2) **Edge (для VM/облака с DNS)** — доступ по доменам (**UniBPM + Keycloak обязательно**, **Camunda по желанию**) и опционально TLS через Let’s Encrypt
+## Два режима запуска
+
+### 1) Local (для проверки на ноутбуке/локально или на VM без доменов)
+Доступ по `localhost:<port>`.
+
+### 2) Edge (для VM/облака с DNS)
+Доступ по доменам, опционально TLS (Let’s Encrypt).
+
+> В Edge **UniBPM и Keycloak обязаны** иметь внешний адрес (иначе не будет корректных OAuth2-редиректов).
+> Camunda можно не публиковать наружу.
 
 ---
 
 ## Быстрый старт
 
-### 1) Скачать и развернуть дистрибутив
+### 0) Пререквизиты
+- Docker Engine 20+
+- Docker Compose v2 (`docker compose version`)
 
+### 1) Скачать дистрибутив и подготовить `.env`
 ```bash
 git clone https://github.com/Reunico/unibpm-community-installer.git
 cd unibpm-community-installer
 
 cp .env.example .env
 nano .env
+```
 
+### 2) Запуск
+```bash
 chmod +x install.sh prepare.sh
 ./install.sh
 ```
@@ -37,8 +55,7 @@ chmod +x install.sh prepare.sh
 
 ## Режим A — Local (рекомендуется для первичной проверки)
 
-### Настройки `.env`
-
+### Минимальные настройки `.env`
 ```env
 DEPLOY_MODE=local
 
@@ -51,67 +68,69 @@ CAMUNDA_PUBLIC_PORT=8081
 ### URL после установки
 - UniBPM UI: `http://localhost:8080/`
 - Keycloak: `http://localhost:8082/keycloak/`
-- Camunda: `http://localhost:8081/`
+- Camunda (webapp): `http://localhost:8081/`
 
-### Проверка состояния
+### Полезные команды
 ```bash
 docker compose ps
 docker compose logs -f unibpm
 docker compose logs -f keycloak
+docker compose logs -f unibpm-engine
 ```
 
 ---
 
 ## Режим B — Edge (VM/облако с DNS)
 
----
+В Edge есть два способа публикации:
 
-## Edge: варианты роутинга (subdomain vs path)
-
-В режиме **Edge** поддерживаются **2 схемы публикации**:
-
-### 1) Subdomain
+### Вариант 1 — subdomain (рекомендуется)
 Отдельные домены:
 - UI: `https://<UNIBPM_DOMAIN>/`
-- Keycloak: `https://<KEYCLOAK_DOMAIN><KEYCLOAK_PATH>/` (обычно `/keycloak`)
+- Keycloak: `https://<KEYCLOAK_DOMAIN>/keycloak/`
 - Camunda (опционально): `https://<CAMUNDA_DOMAIN>/`
 
-Подходит, когда есть возможность завести 2–3 DNS A-записи.
-
-### 2) Path (всё на одном домене)
+### Вариант 2 — path (всё на одном домене)
 Один домен:
 - UI: `https://<UNIBPM_DOMAIN>/`
-- Keycloak: `https://<UNIBPM_DOMAIN><KEYCLOAK_PATH>/`
-- Camunda (опционально): `https://<UNIBPM_DOMAIN><CAMUNDA_PATH>/`
+- Keycloak: `https://<UNIBPM_DOMAIN>/keycloak/`
+- Camunda (опционально): `https://<UNIBPM_DOMAIN>/camunda/`
 
-Подходит, когда можно завести только 1 DNS A-запись.
+> В path-режиме важно, чтобы `KEYCLOAK_PATH` и `CAMUNDA_PATH` начинались с `/`.
 
-> В обоих вариантах `KEYCLOAK_PATH` и `CAMUNDA_PATH` должны начинаться с `/`.
+---
 
-
-### Что нужно заранее
-1) **Публичный IP** у VM
+### Что нужно заранее (Edge)
+1) Публичный IP у VM
 2) Открытые порты (Security Group / Firewall):
-    - `80/tcp` (обязательно для Let’s Encrypt HTTP-01)
-    - `443/tcp` (если включаете TLS)
+   - `80/tcp` (обязательно для Let’s Encrypt HTTP-01)
+   - `443/tcp` (если включаете TLS)
 3) DNS A-записи на IP VM:
-    - `UNIBPM_DOMAIN` → IP VM (**обязательно**)
-    - `KEYCLOAK_DOMAIN` → IP VM (**обязательно**)
-    - `CAMUNDA_DOMAIN` → IP VM (**только если EXPOSE_CAMUNDA=true**)
+   - `UNIBPM_DOMAIN` → IP VM (обязательно)
+   - `KEYCLOAK_DOMAIN` → IP VM (обязательно в режиме subdomain)
+   - `CAMUNDA_DOMAIN` → IP VM (только если `EXPOSE_CAMUNDA=true`)
 
-### Настройки `.env` (пример)
+---
 
+### Пример `.env` для Edge (subdomain + TLS)
 ```env
 DEPLOY_MODE=edge
+
+# ВАЖНО: installer использует EDGE_ROUTING_MODE (а не ROUTING_MODE).
+EDGE_ROUTING_MODE=subdomain
 
 UNIBPM_DOMAIN=unibpm.example.com
 KEYCLOAK_DOMAIN=auth.example.com
 
-# Camunda наружу по DNS? (опционально)
+# Camunda наружу?
 EXPOSE_CAMUNDA=false
 CAMUNDA_DOMAIN=camunda.example.com
 
-# TLS (Let’s Encrypt HTTP-01)
+# Пути публикации
+KEYCLOAK_PATH=/keycloak
+CAMUNDA_PATH=/camunda
+
+# TLS (Let’s Encrypt)
 ENABLE_TLS=true
 LETSENCRYPT_EMAIL=admin@example.com
 
@@ -119,54 +138,27 @@ NGINX_HTTP_PORT=80
 NGINX_HTTPS_PORT=443
 ```
 
-
-### Важные переменные для Edge
-
-```env
-# Схема роутинга в Edge: subdomain | path
-EDGE_ROUTING_MODE=subdomain
-
-# Путь, по которому публикуется Keycloak (и во внешнем URL тоже)
-KEYCLOAK_PATH=/keycloak
-
-# Путь, по которому публикуется Camunda в режиме path
-CAMUNDA_PATH=/camunda
-
-# Доп. origins для WebSocket/CORS (через запятую)
-# EXTRA_ALLOWED_ORIGINS=https://id.reunico.com,https://some.portal.example.com
-EXTRA_ALLOWED_ORIGINS=
-```
-
-
-### Запуск
+### Запуск Edge
 ```bash
 ./install.sh
 ```
 
-### URL после установки
-- UniBPM: `https://unibpm.example.com/` (или `http://...` если `ENABLE_TLS=false`)
-- Keycloak: `https://auth.example.com/keycloak/`
+### URL после установки (Edge)
+- UniBPM:
+  - `https://<UNIBPM_DOMAIN>/` (если `ENABLE_TLS=true`)
+  - `http://<UNIBPM_DOMAIN>/` (если `ENABLE_TLS=false`)
+- Keycloak:
+  - subdomain: `https://<KEYCLOAK_DOMAIN>/keycloak/`
+  - path: `https://<UNIBPM_DOMAIN>/keycloak/`
 - Camunda:
-    - если `EXPOSE_CAMUNDA=true` → `https://camunda.example.com/`
-    - если `false` → Camunda работает внутри docker-сети; для доступа используйте порт `CAMUNDA_PUBLIC_PORT` (если он открыт) или SSH-туннель
+  - если `EXPOSE_CAMUNDA=true`:
+    - subdomain: `https://<CAMUNDA_DOMAIN>/`
+    - path: `https://<UNIBPM_DOMAIN>/camunda/`
+  - если `EXPOSE_CAMUNDA=false`: Camunda доступна только внутри docker-сети (для доступа используйте SSH-туннель/проброс портов при необходимости)
 
 ---
 
-## Диагностика (самые полезные команды)
-
-### WebSocket (/stomp) и Safari/iframe.html
-
-UniBPM использует WebSocket endpoint (по умолчанию `/stomp`).  
-Чтобы не ловить ошибки в браузерах и при работе через DNS/TLS, важно чтобы в `ws.allowed-origins`
-попадали:
-- `http://localhost:3001` (dev)
-- `http://localhost:<BACKEND_PUBLIC_PORT>` (локальный backend)
-- `https://<UNIBPM_DOMAIN>` (edge)
-- любые дополнительные порталы/домен(ы), если UI встраивается или проксируется
-
-Эти значения генерируются installer-ом из переменных `.env` (см. `EXTRA_ALLOWED_ORIGINS`).
-
-
+## Частые проверки и диагностика
 
 ### Статус контейнеров
 ```bash
@@ -183,36 +175,49 @@ docker compose logs -f unibpm-engine
 
 ### Проверка DNS (с вашей машины или с VM)
 ```bash
-dig +short unibpm.example.com
-dig +short auth.example.com
+dig +short <UNIBPM_DOMAIN>
+dig +short <KEYCLOAK_DOMAIN>
+```
+
+### Проверка доступности снаружи (важно для Let’s Encrypt)
+```bash
+curl -I http://<UNIBPM_DOMAIN>/
+curl -I http://<KEYCLOAK_DOMAIN>/
 ```
 
 ---
 
-## Частые проблемы и решения
+## Ошибка Keycloak: “Invalid parameter: redirect_uri”
 
-### 1) Let’s Encrypt не выпускает сертификат
-Проверьте:
-- домены реально резолвятся на IP VM (`dig +short ...`)
-- порт **80** открыт снаружи
-- на порту 80 нет другого сервиса (Apache/старый nginx)
+Это означает, что **в Keycloak client настроены redirectUris, которые не совпадают** с реальным URL входа (домен/путь/схема).
 
-Быстрая проверка:
-```bash
-curl -I http://unibpm.example.com/
-curl -I http://auth.example.com/
-```
+Что проверить:
+1) Откройте админку Keycloak → Realm `unibpm`
+2) Clients:
+   - `unibpm-front` (UI)
+   - `camunda-identity-service` (Camunda SSO)
+3) Убедитесь, что в **Redirect URIs** есть нужные шаблоны:
 
-### 2) После включения TLS браузер не открывает сайт
-Проверьте порт 443 и логи nginx:
-```bash
-docker compose logs -f nginx
-```
+### Для UI (`unibpm-front`)
+- Edge: `https://<UNIBPM_DOMAIN>/*` (или `http://.../*` если без TLS)
+- Local: `http://localhost:<FRONT_PUBLIC_PORT>/*`
 
-### 3) Ошибки авторизации/редиректов в Keycloak
-Убедитесь, что вы заходите на Keycloak по правильному домену/пути:
-- `https://auth.example.com/keycloak/` (edge)
-- `http://localhost:8082/keycloak/` (local)
+### Для Camunda (`camunda-identity-service`) — если публикуете Camunda наружу
+- Edge subdomain:
+  - `https://<CAMUNDA_DOMAIN>/*`
+  - `https://<CAMUNDA_DOMAIN>/login/oauth2/code/keycloak`
+  - `https://<CAMUNDA_DOMAIN>/camunda/login/oauth2/code/keycloak` (если у вас camunda под path)
+- Edge path:
+  - `https://<UNIBPM_DOMAIN>/camunda/*`
+  - `https://<UNIBPM_DOMAIN>/login/oauth2/code/keycloak`
+  - `https://<UNIBPM_DOMAIN>/camunda/login/oauth2/code/keycloak`
+
+Если редиректы не совпадают — Keycloak вернёт `Invalid parameter: redirect_uri`.
+
+> Installer пытается обновлять redirectUris автоматически, но если у вас менялись домены/пути/схемы — проще всего:
+> 1) исправить `.env`
+> 2) запустить `./install.sh` ещё раз
+> 3) и/или вручную поправить redirectUris в Keycloak.
 
 ---
 
@@ -228,4 +233,7 @@ docker compose down
 docker compose down -v
 ```
 
-- [Инструкция по установке](INSTALLER_INSTRUCTION.md)
+---
+
+## Операционное руководство (подробно)
+- [INSTALLER_INSTRUCTION.md](INSTALLER_INSTRUCTION.md)
