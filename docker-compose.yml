@@ -120,11 +120,11 @@ services:
       - "${FRONT_PUBLIC_PORT:-8080}:80"
     restart: unless-stopped
 
-  camunda-bpm-7:
+  unibpm-engine:
     image: cr.yandex/crp1uqso77nujlub6a96/camunda:7.21
     platform: linux/amd64
     volumes:
-      - ./generated/camunda/application.yml:/config/application.yml:ro
+      - ./generated/engine/application.yaml:/config/application.yaml:ro
     ports:
       - "${CAMUNDA_PUBLIC_PORT:-8081}:8080"
     networks:
