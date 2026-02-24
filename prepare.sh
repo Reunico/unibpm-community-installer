@@ -75,7 +75,7 @@ KEYCLOAK_HOST=${KEYCLOAK_HOST:-localhost}
 # Client IDs must match realm-unibpm.json
 UNIBPM_CLIENT_ID=${UNIBPM_CLIENT_ID:-unibpm-app}
 UNIBPM_FRONT_CLIENT_ID=${UNIBPM_FRONT_CLIENT_ID:-unibpm-front}
-CAMUNDA_CLIENT_ID=${CAMUNDA_CLIENT_ID:-camunda-identity-service}
+UNIBPM_CAMUNDA_CLIENT_ID=${UNIBPM_CAMUNDA_CLIENT_ID:-camunda-identity-service}
 
 # Datasources
 UNIBPM_DATASOURCE_URL=${UNIBPM_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/unibpm}
@@ -102,7 +102,7 @@ KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}
 KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-admin}
 
 export DEPLOY_MODE ENABLE_TLS KEYCLOAK_HTTP_PORT KEYCLOAK_PATH KEYCLOAK_PUBLIC_PORT KEYCLOAK_HOST
-export UNIBPM_CLIENT_ID UNIBPM_FRONT_CLIENT_ID CAMUNDA_CLIENT_ID
+export UNIBPM_CLIENT_ID UNIBPM_FRONT_CLIENT_ID UNIBPM_CAMUNDA_CLIENT_ID
 export UNIBPM_DATASOURCE_URL UNIBPM_DATASOURCE_USERNAME UNIBPM_DATASOURCE_PASSWORD
 export CAMUNDA_DATASOURCE_URL CAMUNDA_DATASOURCE_USERNAME CAMUNDA_DATASOURCE_PASSWORD
 export KAFKA_BOOTSTRAP_SERVERS CAMUNDA_CONTEXT_PATH CAMUNDA_LOGIN CAMUNDA_PASSWORD CAMUNDA_REST_API_URL
@@ -211,8 +211,8 @@ if [ "${DEPLOY_MODE:-local}" = "edge" ]; then
     CAM_REDIRECTS=$(jq -nc --arg ui "${UI_BASE}" --arg p "${CAMUNDA_PATH}" \
       '[($ui + $p + "/*")]')
     CAM_ORIGINS=$(jq -nc --arg ui "${UI_BASE}" '[ $ui ]')
-    echo "▶ EDGE(path): updating redirectUris for '${CAMUNDA_CLIENT_ID}' => ${UI_BASE}${CAMUNDA_PATH}/*"
-    update_client_redirects "${CAMUNDA_CLIENT_ID}" "$CAM_REDIRECTS" "$CAM_ORIGINS"
+    echo "▶ EDGE(path): updating redirectUris for '${UNIBPM_CAMUNDA_CLIENT_ID}' => ${UI_BASE}${CAMUNDA_PATH}/*"
+    update_client_redirects "${UNIBPM_CAMUNDA_CLIENT_ID}" "$CAM_REDIRECTS" "$CAM_ORIGINS"
   fi
 else
   echo "▶ LOCAL: skipping redirectUris update (not needed)"
@@ -220,7 +220,7 @@ fi
 
 echo "▶ Fetching client secrets from Keycloak"
 UNIBPM_CLIENT_SECRET=$(get_client_secret "$UNIBPM_CLIENT_ID")
-CAMUNDA_CLIENT_SECRET=$(get_client_secret "$CAMUNDA_CLIENT_ID")
+CAMUNDA_CLIENT_SECRET=$(get_client_secret "$UNIBPM_CAMUNDA_CLIENT_ID")
 export UNIBPM_CLIENT_SECRET CAMUNDA_CLIENT_SECRET
 echo "✔ Client secrets obtained"
 

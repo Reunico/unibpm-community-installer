@@ -13,11 +13,17 @@ spring:
           jwk-set-uri: ${identity.keycloak.base-url}/realms/${identity.keycloak.realm}/protocol/openid-connect/certs
       client:
         registration:
-          keycloak:
+          unibpm-keycloak:
             client-id: ${UNIBPM_CLIENT_ID}
             client-secret: ${UNIBPM_CLIENT_SECRET}
             authorization-grant-type: client_credentials
             provider: keycloak
+          unibpm-camunda:
+            client-id: ${UNIBPM_CAMUNDA_CLIENT_ID}
+            client-secret: ${UNIBPM_CAMUNDA_SECRET}
+            authorization-grant-type: client_credentials
+            provider: keycloak
+            scope: openid
         provider:
           keycloak:
             user-name-attribute: preferred_username
@@ -28,10 +34,12 @@ identity:
     realm: ${KEYCLOAK_REALM}
     front-client-registration-id: ${UNIBPM_FRONT_CLIENT_ID}
     front-url: ${KEYCLOAK_EXTERNAL_URL}
+    client-registration-id: unibpm-keycloak
+    principal: unibpm-app
 camunda-client:
   rest-api-url: ${CAMUNDA_REST_API_URL}
-  rest-api-username: ${CAMUNDA_LOGIN}
-  rest-api-password: ${CAMUNDA_PASSWORD}
+  oauth2-principal: unibpm-camunda-service
+  oauth2-registration-id: unibpm-camunda
 application:
   admin-role-name: ROLE_default-roles-unibpm
 logging:
