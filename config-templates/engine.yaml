@@ -6,8 +6,8 @@ plugin.identity.keycloak:
   useEmailAsCamundaUserId: false
   useUsernameAsCamundaUserId: true
   useGroupPathAsCamundaGroupId: true
-  administratorGroupName: ${CAMUNDA_ADMIN_GROUP_NAME:-DevOps}
-  disableSSLCertificateValidation: ${CAMUNDA_DISABLE_SSL_CERT_VALIDATION:false}
+  administratorGroupName: DevOps
+  disableSSLCertificateValidation: false
 spring:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}

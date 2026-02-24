@@ -220,8 +220,8 @@ fi
 
 echo "▶ Fetching client secrets from Keycloak"
 UNIBPM_CLIENT_SECRET=$(get_client_secret "$UNIBPM_CLIENT_ID")
-CAMUNDA_CLIENT_SECRET=$(get_client_secret "$UNIBPM_CAMUNDA_CLIENT_ID")
-export UNIBPM_CLIENT_SECRET CAMUNDA_CLIENT_SECRET
+UNIBPM_CAMUNDA_SECRET=$(get_client_secret "$UNIBPM_CAMUNDA_CLIENT_ID")
+export UNIBPM_CLIENT_SECRET UNIBPM_CAMUNDA_SECRET
 echo "✔ Client secrets obtained"
 
 # --------------------------------------------------
