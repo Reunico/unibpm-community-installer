@@ -15,7 +15,7 @@ services:
     depends_on:
       - unibpm-frontend
       - keycloak
-      - camunda-bpm-7
+      - unibpm-engine
     restart: unless-stopped
 
   certbot:

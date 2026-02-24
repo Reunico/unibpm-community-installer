@@ -56,7 +56,7 @@ server {
   }
 
   location / {
-    proxy_pass http://camunda-bpm-7:8080;
+    proxy_pass http://unibpm-engine:8080;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

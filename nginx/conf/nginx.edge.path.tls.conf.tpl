@@ -7,7 +7,7 @@ upstream keycloak_upstream {
 }
 
 upstream camunda_upstream {
-  server camunda-bpm-7:8080;
+  server unibpm-engine:8080;
 }
 
 server {
