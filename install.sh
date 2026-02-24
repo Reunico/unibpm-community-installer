@@ -113,7 +113,7 @@ echo "🧩 Running prepare.sh"
 ./prepare.sh
 
 echo "🐳 Starting app (unibpm, camunda, frontend)"
-docker compose up -d unibpm camunda-bpm-7 unibpm-frontend
+docker compose up -d unibpm unibpm-engine unibpm-frontend
 
 # Edge: start nginx (2-phase if TLS enabled)
 if [ "$DEPLOY_MODE" = "edge" ]; then

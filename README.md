@@ -178,7 +178,7 @@ docker compose ps
 docker compose logs -f nginx
 docker compose logs -f keycloak
 docker compose logs -f unibpm
-docker compose logs -f camunda-bpm-7
+docker compose logs -f unibpm-engine
 ```
 
 ### Проверка DNS (с вашей машины или с VM)
