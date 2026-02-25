@@ -1,6 +1,11 @@
 {
   "realm": "unibpm",
   "enabled": true,
+  "roles": {
+    "realm": [
+      { "name": "camunda-rest-api-client" }
+    ]
+  },
   "clients": [
     {
       "clientId": "camunda-identity-service",
@@ -289,6 +294,12 @@
       "clientRoles": {
         "realm-management": ["view-users", "query-users", "view-groups", "query-groups"]
       }
+    },
+    {
+      "username": "service-account-unibpm-camunda-client",
+      "enabled": true,
+      "serviceAccountClientId": "unibpm-camunda-client",
+      "realmRoles": ["camunda-rest-api-client"]
     },
     {
       "username": "admin",
