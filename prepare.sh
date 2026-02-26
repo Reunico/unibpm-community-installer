@@ -343,7 +343,14 @@ mkdir -p generated/unibpm generated/engine
 rm -f generated/unibpm/application.yaml generated/engine/application.yaml
 
 envsubst < config-templates/unibpm.yaml > generated/unibpm/application.yaml
-envsubst < config-templates/engine.yaml > generated/engine/application.yaml
+
+ENGINE_TPL="config-templates/engine.yaml"
+if [ "${DEPLOY_MODE:-local}" != "local" ]; then
+  ENGINE_TPL="config-templates/engine-dns.yaml"
+fi
+
+envsubst < "${ENGINE_TPL}" > generated/engine/application.yaml
+
 
 echo "✔ Configuration files generated"
 echo "▶ prepare.sh finished successfully"

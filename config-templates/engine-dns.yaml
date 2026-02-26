@@ -1,0 +1,32 @@
+plugin.identity.keycloak:
+  keycloakIssuerUrl: ${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}                 # https://id.reunico.com/realms/reunico.com
+  keycloakAdminUrl: ${KEYCLOAK_BASE_URL}/admin/realms/${KEYCLOAK_REALM}            # https://id.reunico.com/admin/realms/reunico.com
+  clientId: ${UNIBPM_CAMUNDA_CLIENT_ID}                    # camunda-identity-service
+  clientSecret: ${UNIBPM_CAMUNDA_SECRET}
+  useEmailAsCamundaUserId: false
+  useUsernameAsCamundaUserId: true
+  useGroupPathAsCamundaGroupId: true
+  administratorGroupName: camunda-admin
+  disableSSLCertificateValidation: false
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+  datasource:
+    url: ${CAMUNDA_DATASOURCE_URL}
+    username: ${CAMUNDA_DATASOURCE_USERNAME}
+    password: ${CAMUNDA_DATASOURCE_PASSWORD}
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: ${UNIBPM_CAMUNDA_CLIENT_ID}         # camunda-identity-service
+            client-secret: ${UNIBPM_CAMUNDA_SECRET}
+            scope: openid,profile,email
+        provider:
+          keycloak:
+            issuer-uri: ${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}  # https://id.reunico.com/realms/reunico.com
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}
+          jwk-set-uri: ${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs
