@@ -71,6 +71,7 @@ services:
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: ${KEYCLOAK_ENABLE_STATISTICS}
       KC_CACHE: ${KEYCLOAK_CACHE_TYPE}
+      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME}
       KC_HOSTNAME_STRICT: ${KEYCLOAK_HOSTNAME_STRICT}
       KC_HOSTNAME_STRICT_HTTPS: ${KEYCLOAK_HOSTNAME_STRICT_HTTPS}
       KC_LOG: ${KEYCLOAK_LOG_OUTPUT}
@@ -105,8 +106,6 @@ services:
       - postgres
       - kafka
       - keycloak
-    extra_hosts:
-      - "keycloak.unibpm-client.local:host-gateway"
 
   unibpm-frontend:
     image: cr.yandex/crp1uqso77nujlub6a96/unibpm-frontend:0.9.9.2-dev-1
@@ -131,8 +130,6 @@ services:
     networks:
       - unibpm
     restart: unless-stopped
-    extra_hosts:
-      - "keycloak.unibpm-client.local:host-gateway"
 
 volumes:
   postgres-data:
