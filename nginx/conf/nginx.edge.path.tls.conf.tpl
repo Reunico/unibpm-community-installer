@@ -68,25 +68,10 @@ server {
     location ^~ ${CAMUNDA_PATH}/ {
       proxy_pass http://camunda_upstream;
       proxy_set_header Host $host;
+      proxy_set_header X-Forwarded-Host $host;
       proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_set_header X-Forwarded-Port $server_port;
       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
       proxy_set_header X-Real-IP $remote_addr;
-      proxy_set_header X-Forwarded-Prefix ${CAMUNDA_PATH};
     }
-
-    location ^~ /oauth2/ {
-        proxy_pass http://camunda_upstream;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Real-IP $remote_addr;
-      }
-
-      location ^~ /login/ {
-        proxy_pass http://camunda_upstream;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Real-IP $remote_addr;
-      }
 }
