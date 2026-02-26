@@ -93,7 +93,7 @@ services:
       retries: 30
 
   unibpm:
-    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-app:0.9.9.2-dev-1
+    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-app:0.9.9.3-hotfix-2
     platform: linux/amd64
     volumes:
       - ./generated/unibpm/application.yaml:/config/application.yaml:ro
@@ -106,6 +106,8 @@ services:
       - postgres
       - kafka
       - keycloak
+    extra_hosts:
+      - "keycloak.unibpm-client.local:host-gateway"
 
   unibpm-frontend:
     image: cr.yandex/crp1uqso77nujlub6a96/unibpm-frontend:0.9.9.2-dev-1
@@ -130,6 +132,8 @@ services:
     networks:
       - unibpm
     restart: unless-stopped
+    extra_hosts:
+      - "keycloak.unibpm-client.local:host-gateway"
 
 volumes:
   postgres-data:

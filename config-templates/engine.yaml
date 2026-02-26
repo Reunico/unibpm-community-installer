@@ -1,6 +1,6 @@
 plugin.identity.keycloak:
-  keycloakIssuerUrl: ${KEYCLOAK_EXTERNAL_URL}/realms/${KEYCLOAK_REALM}                 # https://id.reunico.com/realms/reunico.com
-  keycloakAdminUrl: ${KEYCLOAK_EXTERNAL_URL}/admin/realms/${KEYCLOAK_REALM}            # https://id.reunico.com/admin/realms/reunico.com
+  keycloakIssuerUrl: ${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}                 # https://id.reunico.com/realms/reunico.com
+  keycloakAdminUrl: ${KEYCLOAK_BASE_URL}/admin/realms/${KEYCLOAK_REALM}            # https://id.reunico.com/admin/realms/reunico.com
   clientId: ${UNIBPM_CAMUNDA_CLIENT_ID}                    # camunda-identity-service
   clientSecret: ${UNIBPM_CAMUNDA_SECRET}
   useEmailAsCamundaUserId: false
@@ -23,10 +23,15 @@ spring:
             client-id: ${UNIBPM_CAMUNDA_CLIENT_ID}         # camunda-identity-service
             client-secret: ${UNIBPM_CAMUNDA_SECRET}
             scope: openid,profile,email
+            authorization-grant-type: authorization_code
+            redirect-uri: ${CAMUNDA_BASE_URL}/login/oauth2/code/keycloak
         provider:
           keycloak:
-            issuer-uri: ${KEYCLOAK_EXTERNAL_URL}/realms/${KEYCLOAK_REALM}  # https://id.reunico.com/realms/reunico.com
+            authorization-uri: ${KEYCLOAK_EXTERNAL_URL}/realms/unibpm/protocol/openid-connect/auth
+            token-uri: ${KEYCLOAK_BASE_URL}/realms/unibpm/protocol/openid-connect/token
+            jwk-set-uri: ${KEYCLOAK_BASE_URL}/realms/unibpm/protocol/openid-connect/certs
+            # issuer-uri: ${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}  # https://id.reunico.com/realms/reunico.com
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_EXTERNAL_URL}/realms/${KEYCLOAK_REALM}
-          jwk-set-uri: ${KEYCLOAK_EXTERNAL_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs             # https://.../protocol/openid-connect/certs
+          issuer-uri: ${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}
+          jwk-set-uri: ${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs             # https://.../protocol/openid-connect/certs
