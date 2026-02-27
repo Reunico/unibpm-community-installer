@@ -53,6 +53,12 @@ chmod +x install.sh prepare.sh
 ./install.sh
 ```
 
+#### Данные для входа
+```
+login=admin
+password=admin
+```
+
 Проверка:
 ```bash
 docker compose ps
