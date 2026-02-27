@@ -214,15 +214,41 @@ URL после установки:
 
 ## Важно про URL Keycloak: внутренний vs внешний
 
-Есть два принципиально разных URL:
+В стенде одновременно используются **несколько разных URL Keycloak**, и их нельзя путать:
 
-- **Внутренний** (backend → Keycloak): должен быть docker-адресом, например `http://keycloak:8080/keycloak`
-- **Внешний** (браузер/редиректы): это `KEYCLOAK_EXTERNAL_URL`, например:
-  - subdomain: `https://auth.example.com/keycloak`
-  - path: `https://unibpm.example.com/keycloak`
-  - local: `http://localhost:8082/keycloak`
+1) **KEYCLOAK_BASE_URL (internal)** — как к Keycloak обращаются контейнеры внутри docker-сети.
+    - edge + subdomain: `https://auth.example.com/keycloak`
+    - edge + path: `https://unibpm.example.com/keycloak`
+    - local: `http://keycloak:8080/keycloak`
 
-Если backend внутри контейнера пытается ходить в `http://localhost:8082/...` — получите `Connection refused`.
+2) **KEYCLOAK_INTERNAL_URL (host)** — как к Keycloak обращается *prepare.sh*, который выполняется на хосте.
+   Обычно это опубликованный порт: `http://localhost:8082/keycloak`.
+
+3) **KEYCLOAK_EXTERNAL_URL (public/frontchannel)** — как Keycloak видит браузер и куда должны попадать OAuth2 redirect_uri.
+   Это значение **вычисляет `install.sh`** (по `DEPLOY_MODE`, `EDGE_ROUTING_MODE`, `ENABLE_TLS`, доменам и путям), например:
+   - edge + subdomain: `https://auth.example.com/keycloak`
+   - edge + path: `https://unibpm.example.com/keycloak`
+   - local: `http://localhost:8082/keycloak`
+
+Почему это важно:
+- если контейнер (`unibpm`/`unibpm-engine`) пытается ходить в `http://localhost:8082/...` → будет `Connection refused`;
+- если браузер редиректится на internal URL (`http://keycloak:8080/...`) → OAuth2 ломается;
+- если **issuer** (значение `iss` в токене) не совпадает с `issuer-uri` в приложениях → приложения начнут отклонять JWT.
+
+Официально: в Keycloak можно (и часто нужно) отдельно задавать публичный URL (frontend) и внутренний/backchannel, особенно за reverse-proxy. citeturn0search2turn0search0
+
+### Что куда используется в этом дистрибутиве
+
+**UniBPM (`unibpm`)** генерируемый `generated/unibpm/application.yaml` использует:
+- `spring.security.oauth2.resourceserver.jwt.issuer-uri` → **KEYCLOAK_EXTERNAL_URL** (проверка `iss`),
+- `...jwk-set-uri` и `...token-uri` → **KEYCLOAK_BASE_URL** (получение ключей/токенов по внутреннему адресу).
+
+**Engine (`unibpm-engine`)** генерируемый `generated/engine/application.yaml` использует:
+- `authorization-uri` → **KEYCLOAK_EXTERNAL_URL** (браузерный вход),
+- `token-uri`/`jwk-set-uri` → **KEYCLOAK_BASE_URL** (внутренние вызовы),
+- `redirect-uri` строится из `CAMUNDA_BASE_URL`.
+
+Это нормальная и распространённая схема: *frontchannel* идёт через публичный URL, *backchannel* — по внутреннему адресу. citeturn0search2turn0search0
 
 ---
 
@@ -288,6 +314,32 @@ docker compose logs -f nginx
 ```bash
 ./install.sh
 ```
+
+---
+
+## Как правильно перегенерировать конфиги (и почему `prepare.sh` нельзя запускать «как есть»)
+
+`prepare.sh` ожидает, что переменная **KEYCLOAK_EXTERNAL_URL** уже вычислена (это делает `install.sh`).
+
+Правильный порядок после изменения `.env`:
+
+1) Если вы меняли домены/пути/режим/HTTPS → запускайте полный сценарий:
+```bash
+./install.sh
+```
+
+2) Если вы меняли только прикладные параметры (например, CORS/WS origins) и **не** трогали домены/пути/режим:
+```bash
+./install.sh
+# либо (альтернатива) экспортировать KEYCLOAK_EXTERNAL_URL вручную и запускать prepare.sh,
+# но это для опытных пользователей.
+```
+
+### Рекомендация по стабильному issuer за reverse proxy
+
+Чтобы Keycloak всегда выдавал токены с ожидаемым `iss` (и не зависел от того, кто и по какому адресу к нему обратился),
+в edge-режиме рекомендуется задать hostname/URL Keycloak (например, через `KC_HOSTNAME`/`hostname` настройки).
+Это особенно важно при `EDGE_ROUTING_MODE=path` и при публикации через nginx.
 
 ---
 
