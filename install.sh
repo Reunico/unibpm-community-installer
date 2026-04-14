@@ -106,8 +106,8 @@ render_nginx() {
     < "$tpl" > generated/nginx/default.conf
 }
 
-echo "🐳 Starting infra (postgres, kafka, keycloak)"
-docker compose up -d postgres kafka keycloak
+echo "🐳 Starting infra (postgres, kafka, unibpm-keycloak)"
+docker compose up -d postgres kafka unibpm-keycloak
 
 echo "🧩 Running prepare.sh"
 ./prepare.sh

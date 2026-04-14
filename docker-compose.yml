@@ -14,7 +14,7 @@ services:
       - ./letsencrypt/conf:/etc/letsencrypt
     depends_on:
       - unibpm-frontend
-      - keycloak
+      - unibpm-keycloak
       - unibpm-engine
     restart: unless-stopped
 
@@ -48,8 +48,8 @@ services:
       - unibpm
     restart: unless-stopped
 
-  keycloak:
-    image: quay.io/keycloak/keycloak:26.1.0
+  unibpm-keycloak:
+    image: registry.reunico.com/reunico/unibpm/unibpm-keycloak:1.0.0-SNAPSHOT
     ports:
       - "${KEYCLOAK_BIND_ADDRESS:-127.0.0.1}:${KEYCLOAK_PUBLIC_PORT:-8082}:8080"
     restart: unless-stopped
@@ -84,6 +84,7 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KEYCLOAK_FRONTEND_URL: ${KEYCLOAK_EXTERNAL_URL}
+      UNIBPM_BRAND_PROFILE: community
     networks:
       - unibpm
     healthcheck:
@@ -93,7 +94,7 @@ services:
       retries: 30
 
   unibpm:
-    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-app:0.9.9.3-hotfix-2
+    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-app:1.0.0-SNAPSHOT
     platform: linux/amd64
     volumes:
       - ./generated/unibpm/application.yaml:/config/application.yaml:ro
@@ -105,10 +106,10 @@ services:
     depends_on:
       - postgres
       - kafka
-      - keycloak
+      - unibpm-keycloak
 
   unibpm-frontend:
-    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-frontend:0.9.9.2-dev-1
+    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-frontend:1.0.0-SNAPSHOT
     platform: linux/amd64
     depends_on:
       - unibpm
@@ -121,7 +122,7 @@ services:
     restart: unless-stopped
 
   unibpm-engine:
-    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-engine:7.24
+    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-engine:1.0.0-SNAPSHOT
     platform: linux/amd64
     volumes:
       - ./generated/engine/application.yaml:/config/application.yaml:ro
