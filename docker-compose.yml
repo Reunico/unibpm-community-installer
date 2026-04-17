@@ -49,7 +49,7 @@ services:
     restart: unless-stopped
 
   unibpm-keycloak:
-    image: registry.reunico.com/reunico/unibpm/unibpm-keycloak:1.0.0-SNAPSHOT
+    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-keycloak:1.0.0-SNAPSHOT
     ports:
       - "${KEYCLOAK_BIND_ADDRESS:-127.0.0.1}:${KEYCLOAK_PUBLIC_PORT:-8082}:8080"
     restart: unless-stopped
