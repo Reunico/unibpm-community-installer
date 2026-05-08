@@ -49,7 +49,7 @@ services:
     restart: unless-stopped
 
   unibpm-keycloak:
-    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-keycloak:1.0.0-SNAPSHOT
+    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-keycloak:1.0.0
     ports:
       - "${KEYCLOAK_BIND_ADDRESS:-127.0.0.1}:${KEYCLOAK_PUBLIC_PORT:-8082}:8080"
     restart: unless-stopped
@@ -94,7 +94,7 @@ services:
       retries: 30
 
   unibpm:
-    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-app:1.0.0-SNAPSHOT
+    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-app:1.0.0
     platform: linux/amd64
     volumes:
       - ./generated/unibpm/application.yaml:/config/application.yaml:ro
@@ -109,7 +109,7 @@ services:
       - unibpm-keycloak
 
   unibpm-frontend:
-    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-frontend:1.0.0-SNAPSHOT
+    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-frontend:1.0.0
     platform: linux/amd64
     depends_on:
       - unibpm
@@ -122,7 +122,7 @@ services:
     restart: unless-stopped
 
   unibpm-engine:
-    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-engine:1.0.0-SNAPSHOT
+    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-engine:1.0.0
     platform: linux/amd64
     volumes:
       - ./generated/engine/application.yaml:/config/application.yaml:ro
