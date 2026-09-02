@@ -14,6 +14,10 @@ Kafka 4.3 работает только в KRaft, поэтому старый Zo
 
 Для Community/demo-инсталляций без ценных данных migration worker не нужен: сохраните backup старого стенда и разверните новый Kafka с чистым `kafka-data`.
 
+В single-node профиле также заданы replication factor и minimum ISR для share
+groups internal topic равными `1`; это необходимо для работы Kafka 4.3 на одном
+брокере.
+
 ## Порядок миграции
 
 ### 1. Сохранить исходный кластер

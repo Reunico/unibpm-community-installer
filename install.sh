@@ -3,6 +3,41 @@ set -euo pipefail
 
 echo "▶ UniBPM Community installer (simplified)"
 
+check_compose_version() {
+  local compose_version major minor patch
+
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "❌ Docker не найден в PATH"
+    exit 1
+  fi
+
+  compose_version="$(docker compose version --short 2>/dev/null || true)"
+  if [ -z "$compose_version" ]; then
+    compose_version="$(docker compose version 2>/dev/null | sed -nE 's/.*v([0-9]+\.[0-9]+\.[0-9]+).*/\1/p')"
+  fi
+
+  compose_version="${compose_version#v}"
+  compose_version="${compose_version%%-*}"
+  compose_version="${compose_version%%+*}"
+
+  if [[ ! "$compose_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "❌ Не удалось определить версию Docker Compose v2"
+    echo "Проверьте установку командой: docker compose version"
+    exit 1
+  fi
+
+  IFS=. read -r major minor patch <<< "$compose_version"
+  if (( major < 2 || (major == 2 && minor < 17) )); then
+    echo "❌ Требуется Docker Compose >= 2.17.0, обнаружена версия $compose_version"
+    echo "Обновите Docker Desktop/Compose и повторите запуск."
+    exit 1
+  fi
+
+  echo "✓ Docker Compose $compose_version"
+}
+
+check_compose_version
+
 # Load .env
 [ -f .env ] || cp .env.example .env
 set -o allexport

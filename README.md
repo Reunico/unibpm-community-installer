@@ -21,7 +21,7 @@
 
 - Linux-сервер с архитектурой `x86_64` или `arm64`, поддерживаемой используемыми Docker-образами
 - Docker Engine 20+
-- Docker Compose v2
+- Docker Compose >= 2.17.0 (installer использует `docker compose ... --wait-timeout`)
 - Не менее 4 vCPU
 - Не менее 8 GiB RAM
 - Не менее 40 GiB свободного места на SSD
@@ -32,6 +32,9 @@
 ```bash
 docker compose version
 ```
+
+При запуске `install.sh` версия Compose проверяется автоматически. Версии ниже
+`2.17.0` не поддерживаются.
 
 > 4 vCPU, 8 GiB RAM и 40 GiB SSD — стартовый минимум для ознакомления, демонстрации и функционального тестирования.
 >

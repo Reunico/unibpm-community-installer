@@ -54,6 +54,8 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_SHARE_COORDINATOR_STATE_TOPIC_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
     networks:
       - unibpm
@@ -117,9 +119,12 @@ services:
       - unibpm
     restart: unless-stopped
     depends_on:
-      - postgres
-      - kafka
-      - unibpm-keycloak
+      postgres:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      unibpm-keycloak:
+        condition: service_started
 
   unibpm-frontend:
     image: cr.yandex/crp1uqso77nujlub6a96/unibpm-frontend:1.0.5
@@ -145,9 +150,12 @@ services:
       - unibpm
     restart: unless-stopped
     depends_on:
-      - postgres
-      - kafka
-      - unibpm-keycloak
+      postgres:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      unibpm-keycloak:
+        condition: service_started
 
 volumes:
   postgres-data:
