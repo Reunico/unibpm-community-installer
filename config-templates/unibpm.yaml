@@ -1,6 +1,6 @@
 spring:
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    bootstrap-servers: kafka:29092
   datasource:
     url: ${UNIBPM_DATASOURCE_URL}
     username: ${UNIBPM_DATASOURCE_USERNAME}
