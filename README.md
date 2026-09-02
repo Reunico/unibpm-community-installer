@@ -64,7 +64,7 @@ docker compose version
 
 ### Внешние платформенные сервисы
 
-По умолчанию installer поднимает собственные PostgreSQL, Kafka и Keycloak.
+Community Installer поднимает встроенные PostgreSQL, Kafka и Keycloak.
 
 При использовании внешних PostgreSQL или Identity Provider ресурсы этих компонентов не входят в требования к серверу UniBPM и рассчитываются отдельно.
 
@@ -88,7 +88,15 @@ Community Installer всегда использует встроенный оф�
 
 #### Обновление с прежнего installer
 
-Существующий ZooKeeper-based Kafka 2.3 нельзя обновить напрямую до Kafka 4.x заменой образа или повторным использованием старого volume. Community Installer не выполняет миграцию сообщений; для ценных данных необходим отдельный согласованный сценарий за пределами installer.
+Существующий ZooKeeper-based Kafka 2.3 нельзя обновить напрямую до Kafka 4.x заменой образа или повторным использованием старого состояния. Перед запуском installer проверяет существующий Kafka-контейнер и останавливается, если обнаруживает образ `obsidiandynamics/kafka`. Community Installer не выполняет миграцию сообщений; для ценных данных необходим отдельный согласованный сценарий за пределами installer.
+
+Если это Community/demo-стенд и данные старой Kafka можно удалить, подтвердите потерю сообщений, топиков и consumer offsets одноразовым флагом:
+
+```bash
+ALLOW_LEGACY_KAFKA_RESET=true ./install.sh
+```
+
+Без явного подтверждения старый Kafka-контейнер не будет автоматически заменён.
 
 ### Для Edge + TLS (Let’s Encrypt)
 - Публичный IP VM
@@ -272,7 +280,7 @@ URL после установки:
    - `PUBLIC_SCHEME` (http/https)
    - `KEYCLOAK_EXTERNAL_URL` (внешний URL Keycloak для браузера/редиректов)
 3) Генерирует `generated/nginx/default.conf` из шаблонов `nginx/conf/*.tpl` (в зависимости от режима)
-4) Поднимает инфраструктуру: `postgres`, `kafka`, `keycloak`; ждёт healthcheck Kafka, а `prepare.sh` проверяет готовность Keycloak realm
+4) Поднимает инфраструктуру: `postgres`, `kafka`, `keycloak`; ждёт healthcheck Kafka и Keycloak, а `prepare.sh` дополнительно проверяет готовность Keycloak realm
 5) Запускает `prepare.sh`, который:
    - ждёт готовность Keycloak
    - получает admin token
@@ -281,7 +289,7 @@ URL после установки:
      - `generated/unibpm/application.yaml`
      - `generated/engine/application.yaml`
    - (опционально) обновляет redirect/web origins клиентов в Keycloak (зависит от режима и флагов)
-6) Поднимает `unibpm`, `unibpm-engine`, `unibpm-frontend`; backend и engine зависят от healthy Kafka
+6) Поднимает `unibpm`, `unibpm-engine`, `unibpm-frontend`; backend и engine зависят от healthy Kafka и Keycloak
 7) В Edge поднимает `nginx`
 8) В Edge + TLS выпускает сертификаты Let’s Encrypt и перезапускает `nginx`
 

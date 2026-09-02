@@ -36,6 +36,32 @@ check_compose_version() {
   echo "✓ Docker Compose $compose_version"
 }
 
+check_legacy_kafka() {
+  local kafka_container kafka_image
+
+  kafka_container="$(docker compose ps --all --quiet kafka 2>/dev/null || true)"
+  if [ -z "$kafka_container" ]; then
+    return 0
+  fi
+
+  kafka_image="$(docker inspect --format '{{.Config.Image}}' "$kafka_container" 2>/dev/null || true)"
+  case "$kafka_image" in
+    obsidiandynamics/kafka|obsidiandynamics/kafka:*|obsidiandynamics/kafka@*|*/obsidiandynamics/kafka|*/obsidiandynamics/kafka:*|*/obsidiandynamics/kafka@*)
+      if [ "${ALLOW_LEGACY_KAFKA_RESET:-false}" != "true" ]; then
+        echo "❌ Existing ZooKeeper-based Kafka installation detected: $kafka_image"
+        echo "Automatic migration to Kafka 4.3.1 KRaft is not supported."
+        echo "See README: 'Обновление с прежнего installer'."
+        echo "If this Community/demo installation has no valuable Kafka data, rerun once with:"
+        echo "ALLOW_LEGACY_KAFKA_RESET=true ./install.sh"
+        exit 1
+      fi
+
+      echo "⚠️ Legacy Kafka reset explicitly confirmed."
+      echo "Messages, topics and consumer offsets stored in the old container will be lost."
+      ;;
+  esac
+}
+
 check_compose_version
 
 # Load .env
@@ -44,6 +70,8 @@ set -o allexport
 # shellcheck disable=SC1091
 source .env
 set +o allexport
+
+check_legacy_kafka
 
 # Modes
 DEPLOY_MODE=${DEPLOY_MODE:-local}                 # local | edge
@@ -142,7 +170,7 @@ render_nginx() {
 }
 
 echo "🐳 Starting infra (postgres, kafka, unibpm-keycloak)"
-# --wait blocks the installer until Kafka is healthy and the infra containers are running.
+# --wait blocks the installer until Kafka and Keycloak are healthy.
 # prepare.sh performs the application-level Keycloak realm readiness check.
 docker compose up -d --wait --wait-timeout 300 postgres kafka unibpm-keycloak
 

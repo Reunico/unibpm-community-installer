@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   nginx:
     image: nginx:stable-alpine
@@ -92,7 +90,7 @@ services:
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: ${KEYCLOAK_ENABLE_STATISTICS}
       KC_CACHE: ${KEYCLOAK_CACHE_TYPE}
-      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME}
+      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME:-}
       KC_HOSTNAME_STRICT: ${KEYCLOAK_HOSTNAME_STRICT}
       KC_HOSTNAME_STRICT_HTTPS: ${KEYCLOAK_HOSTNAME_STRICT_HTTPS}
       KC_LOG: ${KEYCLOAK_LOG_OUTPUT}
@@ -108,6 +106,16 @@ services:
       UNIBPM_BRAND_PROFILE: community
     networks:
       - unibpm
+    healthcheck:
+      test: >-
+        bash -c 'exec 3<>/dev/tcp/127.0.0.1/9000;
+        printf "GET %s/health/ready HTTP/1.0\r\nHost: localhost\r\nConnection: close\r\n\r\n" "$${KC_HTTP_RELATIVE_PATH%/}" >&3;
+        IFS= read -r status <&3;
+        [[ "$${status}" == *" 200 "* ]]'
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
   unibpm:
     image: cr.yandex/crp1uqso77nujlub6a96/unibpm-app:1.0.5
     platform: linux/amd64
@@ -124,7 +132,7 @@ services:
       kafka:
         condition: service_healthy
       unibpm-keycloak:
-        condition: service_started
+        condition: service_healthy
 
   unibpm-frontend:
     image: cr.yandex/crp1uqso77nujlub6a96/unibpm-frontend:1.0.5
@@ -155,7 +163,7 @@ services:
       kafka:
         condition: service_healthy
       unibpm-keycloak:
-        condition: service_started
+        condition: service_healthy
 
 volumes:
   postgres-data:
