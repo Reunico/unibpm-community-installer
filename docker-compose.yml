@@ -106,12 +106,6 @@ services:
       UNIBPM_BRAND_PROFILE: community
     networks:
       - unibpm
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:${KEYCLOAK_HTTP_PORT}${KEYCLOAK_PATH}/health/ready" ]
-      interval: 10s
-      timeout: 5s
-      retries: 30
-
   unibpm:
     image: cr.yandex/crp1uqso77nujlub6a96/unibpm-app:1.0.5
     platform: linux/amd64
@@ -123,12 +117,9 @@ services:
       - unibpm
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_started
-      kafka:
-        condition: service_healthy
-      unibpm-keycloak:
-        condition: service_healthy
+      - postgres
+      - kafka
+      - unibpm-keycloak
 
   unibpm-frontend:
     image: cr.yandex/crp1uqso77nujlub6a96/unibpm-frontend:1.0.5
@@ -154,12 +145,9 @@ services:
       - unibpm
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_started
-      kafka:
-        condition: service_healthy
-      unibpm-keycloak:
-        condition: service_healthy
+      - postgres
+      - kafka
+      - unibpm-keycloak
 
 volumes:
   postgres-data:

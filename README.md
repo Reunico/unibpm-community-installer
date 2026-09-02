@@ -277,7 +277,7 @@ URL после установки:
    - `PUBLIC_SCHEME` (http/https)
    - `KEYCLOAK_EXTERNAL_URL` (внешний URL Keycloak для браузера/редиректов)
 3) Генерирует `generated/nginx/default.conf` из шаблонов `nginx/conf/*.tpl` (в зависимости от режима)
-4) Поднимает инфраструктуру: `postgres`, `kafka`, `keycloak`; ждёт healthcheck Kafka и Keycloak
+4) Поднимает инфраструктуру: `postgres`, `kafka`, `keycloak`; ждёт healthcheck Kafka, а `prepare.sh` проверяет готовность Keycloak realm
 5) Запускает `prepare.sh`, который:
    - ждёт готовность Keycloak
    - получает admin token
