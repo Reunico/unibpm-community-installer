@@ -10,7 +10,7 @@ plugin.identity.keycloak:
   disableSSLCertificateValidation: false
 spring:
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    bootstrap-servers: kafka:29092
   datasource:
     url: ${CAMUNDA_DATASOURCE_URL}
     username: ${CAMUNDA_DATASOURCE_USERNAME}

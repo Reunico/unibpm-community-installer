@@ -5,7 +5,7 @@
 ## Что входит в стенд
 
 - PostgreSQL (включая БД для Keycloak)
-- Kafka
+- Kafka 4.3.1 (Apache, single-node KRaft)
 - Keycloak
 - UniBPM backend (`unibpm`)
 - UniBPM frontend (`unibpm-frontend`)
@@ -21,7 +21,7 @@
 
 - Linux-сервер с архитектурой `x86_64` или `arm64`, поддерживаемой используемыми Docker-образами
 - Docker Engine 20+
-- Docker Compose v2
+- Docker Compose >= 2.17.0 (installer использует `docker compose ... --wait-timeout`)
 - Не менее 4 vCPU
 - Не менее 8 GiB RAM
 - Не менее 40 GiB свободного места на SSD
@@ -32,6 +32,9 @@
 ```bash
 docker compose version
 ```
+
+При запуске `install.sh` версия Compose проверяется автоматически. Версии ниже
+`2.17.0` не поддерживаются.
 
 > 4 vCPU, 8 GiB RAM и 40 GiB SSD — стартовый минимум для ознакомления, демонстрации и функционального тестирования.
 >
@@ -61,17 +64,39 @@ docker compose version
 
 ### Внешние платформенные сервисы
 
-По умолчанию installer поднимает собственные PostgreSQL, Kafka и Keycloak.
+Community Installer поднимает встроенные PostgreSQL, Kafka и Keycloak.
 
-При использовании внешних PostgreSQL, Kafka или Identity Provider ресурсы этих компонентов не входят в требования к серверу UniBPM и рассчитываются отдельно.
+При использовании внешних PostgreSQL или Identity Provider ресурсы этих компонентов не входят в требования к серверу UniBPM и рассчитываются отдельно.
 
 Также необходимо учитывать:
 
 - сетевую задержку между компонентами
 - пропускную способность сети
-- доступность внешних сервисов
+- доступность внешнего Identity Provider и PostgreSQL
 - объём и срок хранения данных
 - резервное копирование и восстановление
+
+### Kafka в Community Installer
+
+Community Installer всегда использует встроенный официальный JVM-образ `apache/kafka:4.3.1` в режиме single-node KRaft. ZooKeeper не устанавливается и не запускается. Kafka доступна приложениям только внутри Docker-сети по адресу `kafka:29092`; порт Kafka на host не публикуется.
+
+Данные Kafka, включая KRaft metadata, журналы топиков и consumer offsets, хранятся в именованном volume `kafka-data`. Поэтому `docker compose restart` и пересоздание контейнера без удаления volume сохраняют состояние. Команда `docker compose down -v` удаляет volume и вместе с ним данные Kafka.
+
+Профиль является single-node профилем для Community/demo и функционального тестирования. Он не обеспечивает HA: отказ единственного брокера означает недоступность Kafka, а replication factor и минимальный ISR внутренних топиков равны `1`.
+
+Используемые UniBPM Backend и Engine должны содержать Kafka Client, совместимый с Kafka 4.x. Совместимость проверяется при обновлении версий образов UniBPM.
+
+#### Обновление с прежнего installer
+
+Существующий ZooKeeper-based Kafka 2.3 нельзя обновить напрямую до Kafka 4.x заменой образа или повторным использованием старого состояния. Перед запуском installer проверяет существующий Kafka-контейнер и останавливается, если обнаруживает образ `obsidiandynamics/kafka`. Community Installer не выполняет миграцию сообщений; для ценных данных необходим отдельный согласованный сценарий за пределами installer.
+
+Если это Community/demo-стенд и данные старой Kafka можно удалить, подтвердите потерю сообщений, топиков и consumer offsets одноразовым флагом:
+
+```bash
+ALLOW_LEGACY_KAFKA_RESET=true ./install.sh
+```
+
+Без явного подтверждения старый Kafka-контейнер не будет автоматически заменён.
 
 ### Для Edge + TLS (Let’s Encrypt)
 - Публичный IP VM
@@ -255,7 +280,7 @@ URL после установки:
    - `PUBLIC_SCHEME` (http/https)
    - `KEYCLOAK_EXTERNAL_URL` (внешний URL Keycloak для браузера/редиректов)
 3) Генерирует `generated/nginx/default.conf` из шаблонов `nginx/conf/*.tpl` (в зависимости от режима)
-4) Поднимает инфраструктуру: `postgres`, `kafka`, `keycloak`
+4) Поднимает инфраструктуру: `postgres`, `kafka`, `keycloak`; ждёт healthcheck Kafka и Keycloak, а `prepare.sh` дополнительно проверяет готовность Keycloak realm
 5) Запускает `prepare.sh`, который:
    - ждёт готовность Keycloak
    - получает admin token
@@ -264,7 +289,7 @@ URL после установки:
      - `generated/unibpm/application.yaml`
      - `generated/engine/application.yaml`
    - (опционально) обновляет redirect/web origins клиентов в Keycloak (зависит от режима и флагов)
-6) Поднимает `unibpm`, `unibpm-engine`, `unibpm-frontend`
+6) Поднимает `unibpm`, `unibpm-engine`, `unibpm-frontend`; backend и engine зависят от healthy Kafka и Keycloak
 7) В Edge поднимает `nginx`
 8) В Edge + TLS выпускает сертификаты Let’s Encrypt и перезапускает `nginx`
 
