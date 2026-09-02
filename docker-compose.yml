@@ -113,7 +113,7 @@ services:
       retries: 30
 
   unibpm:
-    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-app:1.0.0
+    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-app:1.0.5
     platform: linux/amd64
     volumes:
       - ./generated/unibpm/application.yaml:/config/application.yaml:ro
@@ -131,7 +131,7 @@ services:
         condition: service_healthy
 
   unibpm-frontend:
-    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-frontend:1.0.0
+    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-frontend:1.0.5
     platform: linux/amd64
     depends_on:
       - unibpm
