@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
 
   certbot:
-    image: certbot/certbot:latest
+    image: certbot/certbot:v5.8.0
     volumes:
       - ./letsencrypt/www:/var/www/certbot
       - ./letsencrypt/conf:/etc/letsencrypt
@@ -38,15 +38,34 @@ services:
     restart: unless-stopped
 
   kafka:
-    image: obsidiandynamics/kafka
+    image: apache/kafka:4.3.1
     environment:
-      - KAFKA_LISTENERS=INTERNAL://:29092
-      - KAFKA_ADVERTISED_LISTENERS=INTERNAL://kafka:29092
-      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT
-      - KAFKA_INTER_BROKER_LISTENER_NAME=INTERNAL
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:29092,CONTROLLER://:29093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
     networks:
       - unibpm
+    volumes:
+      - kafka-data:/var/lib/kafka/data
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:29092 >/dev/null 2>&1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
 
   unibpm-keycloak:
     image: cr.yandex/crp1uqso77nujlub6a96/unibpm-keycloak:1.0.0
@@ -104,9 +123,12 @@ services:
       - unibpm
     restart: unless-stopped
     depends_on:
-      - postgres
-      - kafka
-      - unibpm-keycloak
+      postgres:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      unibpm-keycloak:
+        condition: service_healthy
 
   unibpm-frontend:
     image: cr.yandex/crp1uqso77nujlub6a96/unibpm-frontend:1.0.0
@@ -131,9 +153,17 @@ services:
     networks:
       - unibpm
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      unibpm-keycloak:
+        condition: service_healthy
 
 volumes:
   postgres-data:
+  kafka-data:
 
 networks:
   unibpm:

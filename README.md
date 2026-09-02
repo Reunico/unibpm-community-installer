@@ -5,7 +5,7 @@
 ## Что входит в стенд
 
 - PostgreSQL (включая БД для Keycloak)
-- Kafka
+- Kafka 4.3.1 (Apache, single-node KRaft)
 - Keycloak
 - UniBPM backend (`unibpm`)
 - UniBPM frontend (`unibpm-frontend`)
@@ -72,6 +72,28 @@ docker compose version
 - доступность внешних сервисов
 - объём и срок хранения данных
 - резервное копирование и восстановление
+
+### Kafka в Community Installer
+
+Встроенный профиль использует официальный JVM-образ `apache/kafka:4.3.1` в режиме single-node KRaft. ZooKeeper не устанавливается и не запускается. Kafka доступна приложениям только внутри Docker-сети по адресу `kafka:29092`; порт Kafka на host по умолчанию не публикуется.
+
+Данные Kafka, включая KRaft metadata, журналы топиков и consumer offsets, хранятся в именованном volume `kafka-data`. Поэтому `docker compose restart` и пересоздание контейнера без удаления volume сохраняют состояние. Команда `docker compose down -v` удаляет volume и вместе с ним данные Kafka.
+
+Профиль является single-node профилем для Community/demo и функционального тестирования. Он не обеспечивает HA: отказ единственного брокера означает недоступность Kafka, а replication factor и минимальный ISR внутренних топиков равны `1`.
+
+Kafka client в используемых образах UniBPM app и engine — ветка `3.x` (при проверке доступных образов — `kafka-clients:3.9.1`). Она совместима с Kafka 4.x на уровне протокола; при смене тегов app/engine effective-версию `kafka-clients` нужно проверять отдельно.
+
+Для production рекомендуется внешний Kafka-кластер с собственной отказоустойчивостью, резервным копированием, мониторингом и политиками хранения. Укажите его bootstrap-адрес в `.env`:
+
+```env
+KAFKA_BOOTSTRAP_SERVERS=kafka-1.example.com:9092,kafka-2.example.com:9092
+```
+
+Адрес должен быть доступен из контейнеров `unibpm` и `unibpm-engine`, а внешний кластер должен быть настроен с параметрами безопасности, требуемыми вашей инфраструктурой (TLS/SASL/ACL). Встроенный broker в текущем Community compose при этом всё ещё описан для простого standalone-запуска; для production его следует исключить из запуска отдельным compose override и убрать зависимость приложений от сервиса `kafka`, сохранив тот же `KAFKA_BOOTSTRAP_SERVERS`.
+
+#### Обновление с прежнего installer
+
+Существующий ZooKeeper-based Kafka 2.3 нельзя обновить напрямую до Kafka 4.x заменой образа. Если старые сообщения и offsets ценны, используйте отдельную [инструкцию миграции Kafka 2.3 в KRaft](docs/kafka-migration.md). Для стендов без ценных данных достаточно сохранить backup и развернуть новый Community profile с чистым `kafka-data`.
 
 ### Для Edge + TLS (Let’s Encrypt)
 - Публичный IP VM
@@ -255,7 +277,7 @@ URL после установки:
    - `PUBLIC_SCHEME` (http/https)
    - `KEYCLOAK_EXTERNAL_URL` (внешний URL Keycloak для браузера/редиректов)
 3) Генерирует `generated/nginx/default.conf` из шаблонов `nginx/conf/*.tpl` (в зависимости от режима)
-4) Поднимает инфраструктуру: `postgres`, `kafka`, `keycloak`
+4) Поднимает инфраструктуру: `postgres`, `kafka`, `keycloak`; ждёт healthcheck Kafka и Keycloak
 5) Запускает `prepare.sh`, который:
    - ждёт готовность Keycloak
    - получает admin token
@@ -264,7 +286,7 @@ URL после установки:
      - `generated/unibpm/application.yaml`
      - `generated/engine/application.yaml`
    - (опционально) обновляет redirect/web origins клиентов в Keycloak (зависит от режима и флагов)
-6) Поднимает `unibpm`, `unibpm-engine`, `unibpm-frontend`
+6) Поднимает `unibpm`, `unibpm-engine`, `unibpm-frontend`; backend и engine зависят от healthy Kafka
 7) В Edge поднимает `nginx`
 8) В Edge + TLS выпускает сертификаты Let’s Encrypt и перезапускает `nginx`
 

@@ -107,7 +107,8 @@ render_nginx() {
 }
 
 echo "🐳 Starting infra (postgres, kafka, unibpm-keycloak)"
-docker compose up -d postgres kafka unibpm-keycloak
+# --wait blocks the installer until Kafka and Keycloak pass their healthchecks.
+docker compose up -d --wait --wait-timeout 300 postgres kafka unibpm-keycloak
 
 echo "🧩 Running prepare.sh"
 ./prepare.sh
