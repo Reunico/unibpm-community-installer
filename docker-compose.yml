@@ -107,6 +107,7 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       UNIBPM_BRAND_PROFILE: community
+      UNIBPM_BRAND_REALMS: ${KEYCLOAK_REALM:-unibpm}
     networks:
       unibpm:
         aliases:

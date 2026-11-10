@@ -41,7 +41,7 @@ camunda-client:
   oauth2-principal: unibpm-camunda-service
   oauth2-registration-id: unibpm-camunda
 application:
-  admin-role-name: default-roles-unibpm
+  admin-role-name: unibpm-admin
 logging:
   level:
     com.reunico.unibpm: DEBUG

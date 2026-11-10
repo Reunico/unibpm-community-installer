@@ -137,6 +137,8 @@ login=admin
 password=admin
 ```
 
+У штатного пользователя `admin` есть роль `unibpm-admin`. Раздел администрирования доступен по `/settings`.
+
 Проверка:
 ```bash
 docker compose ps
@@ -148,7 +150,7 @@ docker compose logs -f unibpm-integration-runtime
 
 ## External Task в Community
 
-`./install.sh` создаёт или использует существующий сервисный клиент `unibpm-integration-runtime` в Keycloak, генерирует конфигурацию и ждёт готовности runtime. Runtime подключён к внутренней сети Compose. Для работы с API UniBPM сервисный аккаунт использует права, определённые в realm. В штатном Community realm роль `default-roles-unibpm` даёт административный доступ к UniBPM.
+`./install.sh` создаёт или использует существующий сервисный клиент `unibpm-integration-runtime` в Keycloak, генерирует конфигурацию и ждёт готовности runtime. Runtime подключён к внутренней сети Compose. Его сервисному аккаунту установщик назначает роль `unibpm-admin` для вызовов API UniBPM из интеграций.
 
 Для проверки создайте BPMN-процесс с заданным `History Time To Live` и Service Task типа External с топиком `community`. Укажите следующие Extension Properties.
 
@@ -172,7 +174,7 @@ GitHub Actions запускает быструю проверку на кажд�
 python3 tests/check_installer.py
 ```
 
-Сквозной прогон дополнительно требует работающий Docker, Compose 2.24.4+ и OpenSSL. Он поднимает временный Compose-проект на свободных локальных портах, проверяет токены и вход Camunda, выполняет BPMN с `demo.log.info` и `unibpm.ticket.list`, затем удаляет тестовые контейнеры и тома.
+Сквозной прогон дополнительно требует работающий Docker, Compose 2.24.4+ и OpenSSL. Он поднимает временный Compose-проект на свободных локальных портах, проверяет доступ к административному API, загрузку меню и вход в Camunda, выполняет BPMN с `demo.log.info` и `unibpm.ticket.list`, затем удаляет тестовые контейнеры и тома.
 
 ```bash
 python3 tests/check_installer.py --docker

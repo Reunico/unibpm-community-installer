@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import base64
 import json
 import os
 import shutil
@@ -195,6 +196,11 @@ def smoke(directory, mode, ports):
                        "--data", urlencode(fields))
         return json.loads(body)["access_token"]
 
+    def realm_roles(access_token):
+        payload = access_token.split(".")[1]
+        claims = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
+        return claims["realm_access"]["roles"]
+
     metadata = wait_for(lambda: json.loads(request(f"{issuer}/.well-known/openid-configuration")),
                         "public Keycloak discovery")
     assert metadata["issuer"] == issuer
@@ -208,10 +214,23 @@ def smoke(directory, mode, ports):
         secret = json.loads(request(f"{admin_api}/clients/{clients[0]['id']}/client-secret", *admin_header))
         return token("unibpm", grant_type="client_credentials", client_id=client_id, client_secret=secret["value"])
 
+    admin_token = token("unibpm", grant_type="password", client_id="unibpm-front", username="admin", password="admin")
+    assert "unibpm-admin" in realm_roles(admin_token)
+    menu_url = f"{public_ui}/api/left-aside-menu-item"
+    admin_auth = ("-H", f"Authorization: Bearer {admin_token}")
+    assert isinstance(json.loads(request(f"{menu_url}/actual", *admin_auth)), list)
+    request(f"{menu_url}?size=1", *admin_auth, "-o", os.devnull)
+
+    engine_token = service_token("unibpm-camunda-client")
+    assert "unibpm-admin" not in realm_roles(engine_token)
+    status = request(f"{menu_url}?size=1", "-H", f"Authorization: Bearer {engine_token}",
+                     "--no-fail", "-o", os.devnull, "-w", "%{http_code}")
+    assert status == "403", f"expected admin API to reject an account without unibpm-admin, got {status}"
+
     runtime_token = service_token(RUNTIME_CLIENT)
+    assert "unibpm-admin" in realm_roles(runtime_token)
     wait_for(lambda: request(f"{public_ui}/api/ticket/list?size=1", "-H", f"Authorization: Bearer {runtime_token}",
                              "-o", os.devnull), "UniBPM API through the frontend")
-    engine_token = service_token("unibpm-camunda-client")
 
     def engine_request(path, *args):
         return request(engine + path, "-H", f"Authorization: Bearer {engine_token}", *args)
@@ -231,22 +250,21 @@ def smoke(directory, mode, ports):
     variables = json.loads(engine_request(f"/history/variable-instance?processInstanceId={process}&deserializeValues=false"))
     assert {"demoHandled", "communityTickets"} <= {item["name"] for item in variables}
 
-    demo = json.loads(request(f"{admin_api}/users?username=admin&exact=true", *admin_header))[0]
-    request(f"{admin_api}/users/{demo['id']}", *admin_header, "-X", "PUT", "-H", "Content-Type: application/json",
-            "--data", '{"firstName":"Installer","lastName":"Smoke","email":"smoke@example.test","emailVerified":true}')
     callback = public_camunda + "/login/oauth2/code/keycloak"
     redirect = request(public_camunda + "/oauth2/authorization/keycloak", "-o", os.devnull, "-w", "%{redirect_url}")
     assert parse_qs(urlsplit(redirect).query)["redirect_uri"] == [callback]
     with tempfile.NamedTemporaryFile(dir=directory) as cookies:
         browser = ("-L", "--proto-redir", f"={scheme}", "--max-redirs", "12", "-b", cookies.name, "-c", cookies.name)
         cockpit = public_camunda + "/camunda/app/cockpit/default/"
+        login_page = request(cockpit, *browser)
+        assert 'class="unibpm-login-form"' in login_page, "Keycloak did not render the Community login theme"
         form = LoginForm()
-        form.feed(request(cockpit, *browser))
+        form.feed(login_page)
         assert form.action and form.action.startswith(issuer + "/login-actions/"), "missing Keycloak login form"
         landed = request(form.action, *browser, "--data", urlencode({"username": "admin", "password": "admin"}),
                          "-o", os.devnull, "-w", "%{url_effective}")
         assert landed.startswith(cockpit), "Camunda login did not return to Cockpit"
-    print(f"PASS Docker {mode} (issuer, API, BPMN, Camunda login)", flush=True)
+    print(f"PASS Docker {mode} (issuer, admin access, menu, API, BPMN, Camunda login)", flush=True)
 
 
 def check_docker(modes):

@@ -136,6 +136,7 @@ require_var KEYCLOAK_EXTERNAL_URL
 # Keycloak: wait for realm and fetch client secrets
 # --------------------------------------------------
 KEYCLOAK_HOST_URL="${KEYCLOAK_INTERNAL_URL%/}"
+KEYCLOAK_REALM_ADMIN_URL="${KEYCLOAK_HOST_URL}/admin/realms/${KEYCLOAK_REALM}"
 
 wait_for_url "${KEYCLOAK_HOST_URL}/realms/${KEYCLOAK_REALM}" "Keycloak realm '${KEYCLOAK_REALM}'"
 
@@ -183,9 +184,36 @@ get_client_uuid() {
   echo "$CLIENT_JSON" | jq -r '.[0].id'
 }
 
+get_admin_role_mapping() {
+  local role status
+  role=$(curl -fsS -H "Authorization: Bearer $TOKEN" \
+    "${KEYCLOAK_REALM_ADMIN_URL}/roles?search=unibpm-admin" \
+    | jq -c '[.[] | select(.name == "unibpm-admin") | {id, name}]')
+  if [ "$role" = '[]' ]; then
+    # Keycloak skips realm import on an existing database.
+    status=$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
+      -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+      --data '{"name":"unibpm-admin"}' "${KEYCLOAK_REALM_ADMIN_URL}/roles")
+    if [ "$status" != 201 ] && [ "$status" != 409 ]; then
+      echo "❌ Cannot create the unibpm-admin role in realm '${KEYCLOAK_REALM}' (HTTP $status)" >&2
+      return 1
+    fi
+    role=$(curl -fsS -H "Authorization: Bearer $TOKEN" "${KEYCLOAK_REALM_ADMIN_URL}/roles/unibpm-admin" \
+      | jq -c '[{id, name}]')
+  fi
+  printf '%s\n' "$role"
+}
+
+grant_admin_role() {
+  local user_id="$1"
+  curl -fsS -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+    --data "$ADMIN_ROLE_MAPPING" \
+    "${KEYCLOAK_REALM_ADMIN_URL}/users/${user_id}/role-mappings/realm" >/dev/null
+}
+
 prepare_runtime_config() {
   local client_id=unibpm-integration-runtime
-  local client_uuid client_secret config_file temp_config
+  local client_uuid service_account_id client_secret config_file temp_config
   client_uuid=$(get_client_uuid "$client_id")
   if [ -z "$client_uuid" ] || [ "$client_uuid" = "null" ]; then
     curl -fsS -X POST \
@@ -205,8 +233,9 @@ prepare_runtime_config() {
     client_uuid=$(get_client_uuid "$client_id")
   fi
 
-  curl -fsS -H "Authorization: Bearer $TOKEN" \
-    "${KEYCLOAK_HOST_URL}/admin/realms/${KEYCLOAK_REALM}/clients/${client_uuid}/service-account-user" >/dev/null
+  service_account_id=$(curl -fsS -H "Authorization: Bearer $TOKEN" \
+    "${KEYCLOAK_REALM_ADMIN_URL}/clients/${client_uuid}/service-account-user" | jq -er '.id')
+  grant_admin_role "$service_account_id"
   client_secret=$(get_client_secret "$client_id")
 
   mkdir -p generated/integration-runtime
@@ -395,6 +424,12 @@ fi
   envsubst < "$ENGINE_TPL" > generated/engine/application.yaml
 )
 
+ADMIN_ROLE_MAPPING=$(get_admin_role_mapping)
+admin_user_id=$(curl -fsS -H "Authorization: Bearer $TOKEN" \
+  "${KEYCLOAK_REALM_ADMIN_URL}/users?username=admin&exact=true" | jq -r '.[0].id // empty')
+if [ -n "$admin_user_id" ]; then
+  grant_admin_role "$admin_user_id"
+fi
 prepare_runtime_config
 echo "✔ Configuration files generated"
 echo "▶ prepare.sh finished successfully"
