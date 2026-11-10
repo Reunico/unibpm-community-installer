@@ -11,10 +11,12 @@ if [ ! -f .env ]; then
   exit 1
 fi
 
+keycloak_external_url=${KEYCLOAK_EXTERNAL_URL:-}
 set -o allexport
 # shellcheck disable=SC1091
 source .env
 set +o allexport
+export KEYCLOAK_EXTERNAL_URL=${keycloak_external_url:-${KEYCLOAK_EXTERNAL_URL:-}}
 
 # --------------------------------------------------
 # Helpers
@@ -64,6 +66,7 @@ require_bin envsubst
 # --------------------------------------------------
 DEPLOY_MODE=${DEPLOY_MODE:-local}
 ENABLE_TLS=${ENABLE_TLS:-false}
+EDGE_ROUTING_MODE=${EDGE_ROUTING_MODE:-${ROUTING_MODE:-subdomain}}
 
 # PUBLIC_SCHEME and KEYCLOAK_EXTERNAL_URL must be exported by install.sh
 
@@ -100,7 +103,7 @@ else
   SCHEME="http"
   if [ "${ENABLE_TLS:-false}" = "true" ]; then SCHEME="https"; fi
 
-  if [ "${EDGE_ROUTING_MODE:-path}" = "path" ]; then
+  if [ "$EDGE_ROUTING_MODE" = "path" ]; then
     UI_BASE="${SCHEME}://${UNIBPM_DOMAIN}"
     CAMUNDA_BASE_URL="${UI_BASE}${CAMUNDA_PATH}"
   else
@@ -113,6 +116,7 @@ echo "▶ CAMUNDA_BASE_URL=${CAMUNDA_BASE_URL}"
 
 # Keycloak identity
 KEYCLOAK_REALM=${KEYCLOAK_REALM:-unibpm}
+KEYCLOAK_BASE_URL=${KEYCLOAK_BASE_URL:-http://unibpm-keycloak:${KEYCLOAK_HTTP_PORT}${KEYCLOAK_PATH}}
 KEYCLOAK_INTERNAL_URL=${KEYCLOAK_INTERNAL_URL:-http://localhost:8082/keycloak}
 KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}
 KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-admin}
@@ -165,7 +169,6 @@ get_client_secret() {
   echo "$SECRET"
 }
 
-EDGE_ROUTING_MODE=${EDGE_ROUTING_MODE:-subdomain}
 UNIBPM_DOMAIN=${UNIBPM_DOMAIN:-unibpm.localhost}
 KEYCLOAK_DOMAIN=${KEYCLOAK_DOMAIN:-auth.localhost}
 CAMUNDA_DOMAIN=${CAMUNDA_DOMAIN:-camunda.localhost}
@@ -178,6 +181,48 @@ get_client_uuid() {
   CLIENT_JSON=$(curl -sf -H "Authorization: Bearer $TOKEN" \
     "${KEYCLOAK_HOST_URL}/admin/realms/${KEYCLOAK_REALM}/clients?clientId=${CLIENT_ID_NAME}")
   echo "$CLIENT_JSON" | jq -r '.[0].id'
+}
+
+prepare_runtime_config() {
+  local client_id=unibpm-integration-runtime
+  local client_uuid client_secret config_file temp_config
+  client_uuid=$(get_client_uuid "$client_id")
+  if [ -z "$client_uuid" ] || [ "$client_uuid" = "null" ]; then
+    curl -fsS -X POST \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "Content-Type: application/json" \
+      --data "$(jq -nc --arg client_id "$client_id" '{
+        clientId: $client_id,
+        protocol: "openid-connect",
+        enabled: true,
+        publicClient: false,
+        clientAuthenticatorType: "client-secret",
+        serviceAccountsEnabled: true,
+        standardFlowEnabled: false,
+        directAccessGrantsEnabled: false
+      }')" \
+      "${KEYCLOAK_HOST_URL}/admin/realms/${KEYCLOAK_REALM}/clients" >/dev/null
+    client_uuid=$(get_client_uuid "$client_id")
+  fi
+
+  curl -fsS -H "Authorization: Bearer $TOKEN" \
+    "${KEYCLOAK_HOST_URL}/admin/realms/${KEYCLOAK_REALM}/clients/${client_uuid}/service-account-user" >/dev/null
+  client_secret=$(get_client_secret "$client_id")
+
+  mkdir -p generated/integration-runtime
+  config_file=generated/integration-runtime/application.yaml
+  temp_config=$(mktemp "${config_file}.XXXXXX")
+  if RUNTIME_CLIENT_SECRET_YAML=$(jq -nc --arg value "$client_secret" '$value') \
+     RUNTIME_KEYCLOAK_BASE_URL_YAML=$(jq -nc --arg value "${KEYCLOAK_BASE_URL%/}" '$value') \
+     RUNTIME_KEYCLOAK_REALM_YAML=$(jq -nc --arg value "$KEYCLOAK_REALM" '$value') \
+     envsubst '${RUNTIME_CLIENT_SECRET_YAML} ${RUNTIME_KEYCLOAK_BASE_URL_YAML} ${RUNTIME_KEYCLOAK_REALM_YAML}' \
+       < config-templates/integration-runtime.yaml > "$temp_config"; then
+    mv -f "$temp_config" "$config_file"
+  else
+    rm -f "$temp_config"
+    return 1
+  fi
+  echo "✔ Integration Runtime configuration generated"
 }
 
 update_client_redirects() {
@@ -255,7 +300,7 @@ else
     if [ "${ENABLE_TLS:-false}" = "true" ]; then SCHEME="https"; fi
     UI_BASE="${SCHEME}://${UNIBPM_DOMAIN}"
 
-    if [ "${EDGE_ROUTING_MODE:-path}" = "path" ]; then
+    if [ "$EDGE_ROUTING_MODE" = "path" ]; then
       CAM_REDIRECTS=$(jq -nc \
         --arg ui "${UI_BASE}" \
         --arg ui_http "${UI_BASE/https:\/\//http://}" \
@@ -339,15 +384,17 @@ echo "▶ Generating application configuration files"
 mkdir -p generated/unibpm generated/engine
 rm -f generated/unibpm/application.yaml generated/engine/application.yaml
 
-envsubst < config-templates/unibpm.yaml > generated/unibpm/application.yaml
-
 ENGINE_TPL="config-templates/engine.yaml"
 if [ "${DEPLOY_MODE:-local}" != "local" ]; then
   ENGINE_TPL="config-templates/engine-dns.yaml"
 fi
 
-envsubst < "${ENGINE_TPL}" > generated/engine/application.yaml
+(
+  umask 077
+  envsubst < config-templates/unibpm.yaml > generated/unibpm/application.yaml
+  envsubst < "$ENGINE_TPL" > generated/engine/application.yaml
+)
 
-
+prepare_runtime_config
 echo "✔ Configuration files generated"
 echo "▶ prepare.sh finished successfully"

@@ -64,20 +64,43 @@ check_legacy_kafka() {
 
 check_compose_version
 
+for required_command in curl jq envsubst; do
+  if ! command -v "$required_command" >/dev/null 2>&1; then
+    echo "❌ Установите '$required_command' на хосте" >&2
+    exit 1
+  fi
+done
+
 # Load .env
-[ -f .env ] || cp .env.example .env
+[ -f .env ] || (umask 077; cp .env.example .env)
 set -o allexport
 # shellcheck disable=SC1091
 source .env
 set +o allexport
 
-check_legacy_kafka
-
 # Modes
 DEPLOY_MODE=${DEPLOY_MODE:-local}                 # local | edge
-EDGE_ROUTING_MODE=${EDGE_ROUTING_MODE:-subdomain} # subdomain | path
+EDGE_ROUTING_MODE=${EDGE_ROUTING_MODE:-${ROUTING_MODE:-subdomain}}
 ENABLE_TLS=${ENABLE_TLS:-false}
 EXPOSE_CAMUNDA=${EXPOSE_CAMUNDA:-false}
+
+case "$DEPLOY_MODE" in
+  local|edge) ;;
+  *) echo "❌ DEPLOY_MODE должен быть local или edge" >&2; exit 1 ;;
+esac
+if [ "$DEPLOY_MODE" = "edge" ]; then
+  case "$EDGE_ROUTING_MODE" in
+    path|subdomain) ;;
+    *) echo "❌ EDGE_ROUTING_MODE должен быть path или subdomain" >&2; exit 1 ;;
+  esac
+  if [ "$ENABLE_TLS" = "true" ] && [ -z "${LETSENCRYPT_EMAIL:-}" ]; then
+    echo "❌ ENABLE_TLS=true требует LETSENCRYPT_EMAIL" >&2
+    exit 1
+  fi
+fi
+export DEPLOY_MODE EDGE_ROUTING_MODE ENABLE_TLS EXPOSE_CAMUNDA
+
+check_legacy_kafka
 
 # Paths / ports
 KEYCLOAK_PATH=${KEYCLOAK_PATH:-/keycloak}
@@ -165,7 +188,12 @@ export FRONTEND_HTTP_PORT
 
 render_nginx() {
   local tpl="$1"
-  envsubst '${UNIBPM_DOMAIN} ${KEYCLOAK_DOMAIN} ${CAMUNDA_DOMAIN} ${KEYCLOAK_HTTP_PORT} ${KEYCLOAK_PATH} ${CAMUNDA_PATH} ${CERT_PRIMARY_DOMAIN} ${FRONTEND_HTTP_PORT}' \
+  local camunda_routes=""
+  if [ "$EDGE_ROUTING_MODE" = "path" ] && [ "$EXPOSE_CAMUNDA" = "true" ]; then
+    camunda_routes=$(envsubst '${CAMUNDA_PATH}' < nginx/conf/nginx.edge.path.camunda.routes.tpl)
+  fi
+  CAMUNDA_PATH_ROUTES="$camunda_routes" \
+    envsubst '${UNIBPM_DOMAIN} ${KEYCLOAK_DOMAIN} ${CAMUNDA_DOMAIN} ${KEYCLOAK_HTTP_PORT} ${KEYCLOAK_PATH} ${CERT_PRIMARY_DOMAIN} ${FRONTEND_HTTP_PORT} ${CAMUNDA_PATH_ROUTES}' \
     < "$tpl" > generated/nginx/default.conf
 }
 
@@ -177,8 +205,11 @@ docker compose up -d --wait --wait-timeout 300 postgres kafka unibpm-keycloak
 echo "🧩 Running prepare.sh"
 ./prepare.sh
 
-echo "🐳 Starting app (unibpm, camunda, frontend)"
-docker compose up -d unibpm unibpm-engine unibpm-frontend
+echo "🐳 Starting app (unibpm, camunda, integration runtime, frontend)"
+# Recreate services that use the freshly generated bind-mounted configs.
+docker compose up -d --no-deps --force-recreate --wait --wait-timeout 300 unibpm unibpm-engine unibpm-integration-runtime
+# Reload Nginx upstream addresses after the application containers are recreated.
+docker compose up -d --no-deps --force-recreate --wait --wait-timeout 60 unibpm-frontend
 
 # Edge: start nginx (2-phase if TLS enabled)
 if [ "$DEPLOY_MODE" = "edge" ]; then
@@ -187,15 +218,10 @@ if [ "$DEPLOY_MODE" = "edge" ]; then
   render_nginx "$NGINX_TPL_HTTP"
 
   echo "🐳 Starting nginx (HTTP)"
-  docker compose up -d nginx
+  docker compose up -d --no-deps --force-recreate --wait --wait-timeout 60 nginx
 
   # Phase 2: TLS issuance + switch to TLS config
   if [ "$ENABLE_TLS" = "true" ]; then
-    if [ -z "$LETSENCRYPT_EMAIL" ]; then
-      echo "❌ ENABLE_TLS=true требует LETSENCRYPT_EMAIL"
-      exit 1
-    fi
-
     mkdir -p letsencrypt/www letsencrypt/conf
 
     if [ ! -f "letsencrypt/conf/live/${CERT_PRIMARY_DOMAIN}/fullchain.pem" ]; then
@@ -209,9 +235,13 @@ if [ "$DEPLOY_MODE" = "edge" ]; then
 
     echo "🔒 Rendering nginx TLS config"
     render_nginx "$NGINX_TPL_TLS"
+    if ! docker compose exec -T nginx nginx -t; then
+      render_nginx "$NGINX_TPL_HTTP"
+      exit 1
+    fi
 
-    echo "🐳 Restarting nginx (TLS)"
-    docker compose restart nginx
+    echo "🐳 Starting nginx (TLS)"
+    docker compose up -d --no-deps --force-recreate --wait --wait-timeout 60 nginx
   fi
 fi
 

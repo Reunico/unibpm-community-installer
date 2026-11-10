@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:camunda="http://camunda.org/schema/1.0/bpmn" targetNamespace="https://community.test/smoke">
+  <bpmn:process id="community_runtime_smoke" isExecutable="true" camunda:historyTimeToLive="1">
+    <bpmn:startEvent id="start"/>
+    <bpmn:sequenceFlow id="toDemo" sourceRef="start" targetRef="demo"/>
+    <bpmn:serviceTask id="demo" camunda:type="external" camunda:topic="community">
+      <bpmn:extensionElements><camunda:properties>
+        <camunda:property name="uni.connector" value="demo"/>
+        <camunda:property name="uni.action" value="log.info"/>
+        <camunda:property name="uni.version" value="v1"/>
+      </camunda:properties></bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="toApi" sourceRef="demo" targetRef="listTickets"/>
+    <bpmn:serviceTask id="listTickets" camunda:type="external" camunda:topic="community">
+      <bpmn:extensionElements><camunda:properties>
+        <camunda:property name="uni.connector" value="unibpm"/>
+        <camunda:property name="uni.action" value="ticket.list"/>
+        <camunda:property name="uni.version" value="v1"/>
+        <camunda:property name="unibpm.in.criteria" value="{&quot;page&quot;:0,&quot;size&quot;:1}"/>
+        <camunda:property name="unibpm.out.result" value="communityTickets"/>
+      </camunda:properties></bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="toEnd" sourceRef="listTickets" targetRef="end"/>
+    <bpmn:endEvent id="end"/>
+  </bpmn:process>
+</bpmn:definitions>

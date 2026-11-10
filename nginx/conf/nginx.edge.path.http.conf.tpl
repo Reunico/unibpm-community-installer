@@ -17,14 +17,7 @@ server {
     proxy_set_header X-Forwarded-Prefix ${KEYCLOAK_PATH};
   }
 
-  location ^~ ${CAMUNDA_PATH}/ {
-    proxy_pass http://unibpm-engine:8080;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-Prefix ${CAMUNDA_PATH};
-  }
+  ${CAMUNDA_PATH_ROUTES}
 
   location / {
     proxy_pass http://unibpm-frontend:${FRONTEND_HTTP_PORT};

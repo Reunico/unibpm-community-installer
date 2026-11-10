@@ -9,7 +9,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${identity.keycloak.front-url}/realms/unibpm
+          issuer-uri: ${identity.keycloak.front-url}/realms/${identity.keycloak.realm}
           jwk-set-uri: ${identity.keycloak.base-url}/realms/${identity.keycloak.realm}/protocol/openid-connect/certs
       client:
         registration:

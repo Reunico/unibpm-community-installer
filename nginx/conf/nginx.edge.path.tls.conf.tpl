@@ -6,10 +6,6 @@ upstream keycloak_upstream {
   server keycloak:8080;
 }
 
-upstream camunda_upstream {
-  server unibpm-engine:8080;
-}
-
 server {
   listen 80;
   server_name ${UNIBPM_DOMAIN};
@@ -65,29 +61,5 @@ server {
       proxy_set_header X-Forwarded-Prefix ${KEYCLOAK_PATH};
     }
 
-    location ^~ ${CAMUNDA_PATH}/ {
-      proxy_pass http://camunda_upstream;
-      proxy_set_header Host $host;
-      proxy_set_header X-Forwarded-Host $host;
-      proxy_set_header X-Forwarded-Proto $scheme;
-      proxy_set_header X-Forwarded-Port $server_port;
-      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-      proxy_set_header X-Real-IP $remote_addr;
-    }
-
-    location ^~ /oauth2/ {
-            proxy_pass http://camunda_upstream;
-            proxy_set_header Host $host;
-            proxy_set_header X-Forwarded-Proto $scheme;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Real-IP $remote_addr;
-          }
-
-          location ^~ /login/ {
-            proxy_pass http://camunda_upstream;
-            proxy_set_header Host $host;
-            proxy_set_header X-Forwarded-Proto $scheme;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Real-IP $remote_addr;
-          }
+  ${CAMUNDA_PATH_ROUTES}
 }

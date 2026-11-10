@@ -14,6 +14,11 @@ services:
       - unibpm-frontend
       - unibpm-keycloak
       - unibpm-engine
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "--no-check-certificate", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 5s
+      retries: 6
     restart: unless-stopped
 
   certbot:
@@ -69,6 +74,7 @@ services:
 
   unibpm-keycloak:
     image: cr.yandex/crp1uqso77nujlub6a96/unibpm-keycloak:1.1.0
+    platform: linux/amd64
     ports:
       - "${KEYCLOAK_BIND_ADDRESS:-127.0.0.1}:${KEYCLOAK_PUBLIC_PORT:-8082}:8080"
     restart: unless-stopped
@@ -86,26 +92,25 @@ services:
       KC_DB_USERNAME: ${KEYCLOAK_DATABASE_USER}
       KC_DB_PASSWORD: ${KEYCLOAK_DATABASE_PASSWORD}
       KC_PROXY_HEADERS: ${KEYCLOAK_PROXY_HEADERS}
-      KC_PROXY: ${KEYCLOAK_PROXY}
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: ${KEYCLOAK_ENABLE_STATISTICS}
       KC_CACHE: ${KEYCLOAK_CACHE_TYPE}
-      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME:-}
+      # Tokens from Docker-network and browser requests must have the same issuer.
+      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME:-${KEYCLOAK_EXTERNAL_URL}}
       KC_HOSTNAME_STRICT: ${KEYCLOAK_HOSTNAME_STRICT}
-      KC_HOSTNAME_STRICT_HTTPS: ${KEYCLOAK_HOSTNAME_STRICT_HTTPS}
       KC_LOG: ${KEYCLOAK_LOG_OUTPUT}
       KC_LOG_LEVEL: ${KEYCLOAK_LOG_LEVEL}
       KC_HTTP_ENABLED: "true"
       KC_HTTPS_ENABLED: ${KEYCLOAK_ENABLE_HTTPS}
       KC_HTTP_PORT: ${KEYCLOAK_HTTP_PORT}
       KC_HTTP_RELATIVE_PATH: ${KEYCLOAK_PATH}
-      KC_HOSTNAME_ADMIN_URL: ${KEYCLOAK_EXTERNAL_URL}
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
-      KEYCLOAK_FRONTEND_URL: ${KEYCLOAK_EXTERNAL_URL}
       UNIBPM_BRAND_PROFILE: community
     networks:
-      - unibpm
+      unibpm:
+        aliases:
+          - keycloak
     healthcheck:
       test: >-
         bash -c 'exec 3<>/dev/tcp/127.0.0.1/9000;
@@ -133,12 +138,19 @@ services:
         condition: service_healthy
       unibpm-keycloak:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8099/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
 
   unibpm-frontend:
     image: cr.yandex/crp1uqso77nujlub6a96/unibpm-frontend:1.1.0
     platform: linux/amd64
     depends_on:
-      - unibpm
+      unibpm:
+        condition: service_healthy
     networks:
       - unibpm
     expose:
@@ -146,6 +158,11 @@ services:
     ports:
       - "${FRONT_PUBLIC_PORT:-8080}:80"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
   unibpm-engine:
     image: cr.yandex/crp1uqso77nujlub6a96/unibpm-engine:1.1.0
@@ -153,7 +170,7 @@ services:
     volumes:
       - ./generated/engine/application.yaml:/config/application.yaml:ro
     ports:
-      - "${CAMUNDA_PUBLIC_PORT:-8081}:8080"
+      - "${CAMUNDA_BIND_ADDRESS:-127.0.0.1}:${CAMUNDA_PUBLIC_PORT:-8081}:8080"
     networks:
       - unibpm
     restart: unless-stopped
@@ -164,6 +181,40 @@ services:
         condition: service_healthy
       unibpm-keycloak:
         condition: service_healthy
+    healthcheck:
+      # The REST security chain returns 401 once the Engine HTTP endpoint is ready.
+      test: ["CMD-SHELL", "wget -S -O /dev/null http://127.0.0.1:8080/engine-rest/version 2>&1 | grep -Eq 'HTTP/[0-9.]+ 401'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  unibpm-integration-runtime:
+    image: cr.yandex/crp1uqso77nujlub6a96/unibpm-integration-runtime:1.1.0
+    platform: linux/amd64
+    environment:
+      SPRING_CONFIG_LOCATION: file:/config/application.yaml
+      JAVA_OPTS: ${INTEGRATION_RUNTIME_JAVA_OPTS:--Xms128m -Xmx512m}
+    volumes:
+      - ./generated/integration-runtime/application.yaml:/config/application.yaml:ro
+    networks:
+      - unibpm
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      unibpm-keycloak:
+        condition: service_healthy
+      unibpm:
+        condition: service_started
+      unibpm-engine:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8091/public/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
 volumes:
   postgres-data:
