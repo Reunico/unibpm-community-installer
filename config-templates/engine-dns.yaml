@@ -1,3 +1,13 @@
+server:
+  # Use the scheme from Nginx when building the OAuth callback.
+  forward-headers-strategy: native
+
+unibpm:
+  external-task:
+    topics:
+      community:
+        lock-duration-ms: 60000
+
 plugin.identity.keycloak:
   keycloakIssuerUrl: ${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}                 # https://id.reunico.com/realms/reunico.com
   keycloakAdminUrl: ${KEYCLOAK_BASE_URL}/admin/realms/${KEYCLOAK_REALM}            # https://id.reunico.com/admin/realms/reunico.com
@@ -23,10 +33,14 @@ spring:
             client-id: ${UNIBPM_CAMUNDA_CLIENT_ID}         # camunda-identity-service
             client-secret: ${UNIBPM_CAMUNDA_SECRET}
             scope: openid,profile,email
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
         provider:
           keycloak:
-            issuer-uri: ${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}  # https://id.reunico.com/realms/reunico.com
+            authorization-uri: ${KEYCLOAK_EXTERNAL_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/auth
+            token-uri: ${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/token
+            jwk-set-uri: ${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}
+          issuer-uri: ${KEYCLOAK_EXTERNAL_URL}/realms/${KEYCLOAK_REALM}
           jwk-set-uri: ${KEYCLOAK_BASE_URL}/realms/${KEYCLOAK_REALM}/protocol/openid-connect/certs

@@ -3,7 +3,8 @@
   "enabled": true,
   "roles": {
     "realm": [
-      { "name": "camunda-rest-api-client" }
+      { "name": "camunda-rest-api-client" },
+      { "name": "unibpm-admin" }
     ]
   },
   "clients": [
@@ -306,6 +307,7 @@
       "enabled": true,
       "firstName": "Admin",
       "lastName": "User",
+      "email": "admin@example.test",
       "credentials": [
         {
           "type": "password",
@@ -314,7 +316,7 @@
         }
       ],
       "groups": ["camunda-admin"],
-      "realmRoles": ["default-roles-unibpm"]
+      "realmRoles": ["unibpm-admin"]
     }
   ]
 }

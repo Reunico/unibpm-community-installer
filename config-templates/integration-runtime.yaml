@@ -1,0 +1,62 @@
+server:
+  port: 8091
+
+management:
+  endpoints:
+    web:
+      base-path: /public
+      exposure:
+        include: health
+
+spring:
+  application:
+    name: unibpm-integration-runtime
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
+      - org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration
+  kafka:
+    bootstrap-servers: kafka:29092
+    consumer:
+      auto-offset-reset: earliest
+  security:
+    oauth2:
+      client:
+        registration:
+          unibpm-runtime:
+            authorization-grant-type: client_credentials
+            client-id: unibpm-integration-runtime
+            client-secret: ${RUNTIME_CLIENT_SECRET_YAML}
+            provider: keycloak
+        provider:
+          keycloak:
+            token-uri: ${identity.keycloak.base-url}/realms/${identity.keycloak.realm}/protocol/openid-connect/token
+
+identity:
+  keycloak:
+    base-url: ${RUNTIME_KEYCLOAK_BASE_URL_YAML}
+    realm: ${RUNTIME_KEYCLOAK_REALM_YAML}
+    client-registration-id: unibpm-runtime
+
+unibpm:
+  client:
+    url: http://unibpm:8099
+    name: unibpm
+    keycloak:
+      client-registration-id: unibpm-runtime
+  external-task:
+    client:
+      kafka:
+        jobs-topic: reunico.unibpm.external-task.jobs.community.prod
+        results-topic: reunico.unibpm.external-task.results.prod
+  integration:
+    feedback:
+      enabled: false
+    inbound:
+      enabled: false
+    connectors:
+      demo:
+        enabled: true
+      unibpm:
+        enabled: true

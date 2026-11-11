@@ -10,6 +10,7 @@
 - UniBPM backend (`unibpm`)
 - UniBPM frontend (`unibpm-frontend`)
 - UniBPM Engine / Camunda 7 (`unibpm-engine`)
+- UniBPM Integration Runtime (`unibpm-integration-runtime`)
 - Nginx gateway для доменов/HTTPS (в режиме Edge)
 - Certbot для Let’s Encrypt (только если включён TLS)
 
@@ -19,9 +20,10 @@
 
 ### Обязательно
 
-- Linux-сервер с архитектурой `x86_64` или `arm64`, поддерживаемой используемыми Docker-образами
+- Linux-сервер `x86_64`. На `arm64` требуется эмуляция контейнеров `linux/amd64`
 - Docker Engine 20+
 - Docker Compose >= 2.17.0 (installer использует `docker compose ... --wait-timeout`)
+- Bash, `curl`, `jq` и `envsubst` (пакет `gettext-base` в Debian и Ubuntu)
 - Не менее 4 vCPU
 - Не менее 8 GiB RAM
 - Не менее 40 GiB свободного места на SSD
@@ -38,7 +40,7 @@ docker compose version
 
 > 4 vCPU, 8 GiB RAM и 40 GiB SSD — стартовый минимум для ознакомления, демонстрации и функционального тестирования.
 >
-> Installer запускает на одном сервере UniBPM, Process Engine, PostgreSQL, Kafka и Keycloak. При оценке ресурсов необходимо учитывать их суммарное потребление.
+> Installer запускает на одном сервере UniBPM, Process Engine, Integration Runtime, PostgreSQL, Kafka и Keycloak. При оценке ресурсов необходимо учитывать их суммарное потребление.
 >
 > Фактические требования зависят от количества зарегистрированных и одновременно активных пользователей, запускаемых процессов, пользовательских задач, API-запросов, интеграций, вложений и срока хранения данных.
 >
@@ -123,10 +125,9 @@ ALLOW_LEGACY_KAFKA_RESET=true ./install.sh
 git clone https://github.com/Reunico/unibpm-community-installer.git
 cd unibpm-community-installer
 
-cp .env.example .env
+(umask 077; cp .env.example .env)
 nano .env
 
-chmod +x install.sh prepare.sh
 ./install.sh
 ```
 
@@ -136,13 +137,51 @@ login=admin
 password=admin
 ```
 
+У штатного пользователя `admin` есть роль `unibpm-admin`. Раздел администрирования доступен по `/settings`.
+
 Проверка:
 ```bash
 docker compose ps
 docker compose logs -f unibpm
-docker compose logs -f keycloak
+docker compose logs -f unibpm-keycloak
 docker compose logs -f unibpm-engine
+docker compose logs -f unibpm-integration-runtime
 ```
+
+## External Task в Community
+
+`./install.sh` создаёт или использует существующий сервисный клиент `unibpm-integration-runtime` в Keycloak, генерирует конфигурацию и ждёт готовности runtime. Runtime подключён к внутренней сети Compose. Его сервисному аккаунту установщик назначает роль `unibpm-admin` для вызовов API UniBPM из интеграций.
+
+Для проверки создайте BPMN-процесс с заданным `History Time To Live` и Service Task типа External с топиком `community`. Укажите следующие Extension Properties.
+
+| Свойство | Значение |
+| --- | --- |
+| `uni.connector` | `demo` |
+| `uni.action` | `log.info` |
+| `uni.version` | `v1` |
+
+После выполнения процесс продолжится, а в его переменных появится `demoHandled=true`. Обработчик `demo` записывает переменные задачи в журнал. Для обращения к API UniBPM используйте коннектор `unibpm`, например `ticket.list` с `unibpm.in.criteria` равным `{"page":0,"size":1}`. [Руководство по коннектору UniBPM](https://unibpm.ru/docs/integration/unibpm-integration-unibpm/)
+
+Повторный запуск `./install.sh` применяет сгенерированные конфиги к контейнерам и сохраняет сервисный клиент. Размер кучи runtime по умолчанию ограничен 512 МиБ и задаётся через `INTEGRATION_RUNTIME_JAVA_OPTS` в `.env`.
+
+## Автопроверки установщика
+
+GitHub Actions запускает быструю проверку на каждый PR. Полный Docker-прогон запускается вручную через **Actions → Installer checks → Run workflow**. Кнопка появится после добавления workflow в ветку `main`.
+
+Быстрая проверка запускается без Docker daemon. Нужны Python 3, Docker Compose и утилиты установщика. Она проверяет модель Compose, выбор шаблона Nginx, `EXPOSE_CAMUNDA`, публичный URL Keycloak и набор доменов для Certbot.
+
+```bash
+python3 tests/check_installer.py
+```
+
+Сквозной прогон дополнительно требует работающий Docker, Compose 2.24.4+ и OpenSSL. Он поднимает временный Compose-проект на свободных локальных портах, проверяет доступ к административному API, загрузку меню и вход в Camunda, выполняет BPMN с `demo.log.info` и `unibpm.ticket.list`, затем удаляет тестовые контейнеры и тома.
+
+```bash
+python3 tests/check_installer.py --docker
+python3 tests/check_installer.py --docker --mode path-https
+```
+
+Матрица включает `local`, `path-http`, `path-https`, `subdomain-http` и `subdomain-https`. HTTPS-прогон использует тестовый сертификат, а выпуск через Let’s Encrypt проверяется на уровне аргументов Certbot.
 
 ---
 
@@ -181,7 +220,9 @@ CAMUNDA_PUBLIC_PORT=8081
 Один домен:
 - UI: `https://<UNIBPM_DOMAIN>/`
 - Keycloak: `https://<UNIBPM_DOMAIN><KEYCLOAK_PATH>/`
-- Camunda (опционально): `https://<UNIBPM_DOMAIN><CAMUNDA_PATH>/`
+- Camunda (опционально): `https://<UNIBPM_DOMAIN><CAMUNDA_PATH>/` (только если `EXPOSE_CAMUNDA=true`)
+
+Прямой порт Engine по умолчанию привязан к `127.0.0.1` через `CAMUNDA_BIND_ADDRESS`. В Edge внешний доступ к Camunda идёт через Nginx.
 
 > В обоих вариантах `KEYCLOAK_PATH` и `CAMUNDA_PATH` должны начинаться с `/`.
 
@@ -288,10 +329,11 @@ URL после установки:
    - генерирует:
      - `generated/unibpm/application.yaml`
      - `generated/engine/application.yaml`
+     - `generated/integration-runtime/application.yaml`
    - (опционально) обновляет redirect/web origins клиентов в Keycloak (зависит от режима и флагов)
-6) Поднимает `unibpm`, `unibpm-engine`, `unibpm-frontend`; backend и engine зависят от healthy Kafka и Keycloak
-7) В Edge поднимает `nginx`
-8) В Edge + TLS выпускает сертификаты Let’s Encrypt и перезапускает `nginx`
+6) Поднимает `unibpm`, `unibpm-engine`, `unibpm-integration-runtime` и `unibpm-frontend` после готовности Kafka и Keycloak. Перед запуском шлюза или завершением установки ждёт готовности всех четырёх прикладных сервисов
+7) В Edge поднимает `nginx` и ждёт ответа шлюза по HTTP
+8) В Edge + TLS выпускает сертификат Let’s Encrypt, если его ещё нет, проверяет TLS-конфигурацию и ждёт ответа шлюза по HTTPS
 
 ---
 
@@ -299,10 +341,7 @@ URL после установки:
 
 В стенде одновременно используются **несколько разных URL Keycloak**, и их нельзя путать:
 
-1) **KEYCLOAK_BASE_URL (internal)** — как к Keycloak обращаются контейнеры внутри docker-сети.
-    - edge + subdomain: `https://auth.example.com/keycloak`
-    - edge + path: `https://unibpm.example.com/keycloak`
-    - local: `http://keycloak:8080/keycloak`
+1) **KEYCLOAK_BASE_URL (internal)** — адрес Keycloak для контейнеров в Docker-сети. По умолчанию это `http://unibpm-keycloak:8080/keycloak` в Local и Edge.
 
 2) **KEYCLOAK_INTERNAL_URL (host)** — как к Keycloak обращается *prepare.sh*, который выполняется на хосте.
    Обычно это опубликованный порт: `http://localhost:8082/keycloak`.
@@ -328,10 +367,11 @@ URL после установки:
 
 **Engine (`unibpm-engine`)** генерируемый `generated/engine/application.yaml` использует:
 - `authorization-uri` → **KEYCLOAK_EXTERNAL_URL** (браузерный вход),
+- `issuer-uri` → **KEYCLOAK_EXTERNAL_URL** (проверка `iss`),
 - `token-uri`/`jwk-set-uri` → **KEYCLOAK_BASE_URL** (внутренние вызовы),
 - `redirect-uri` строится из `CAMUNDA_BASE_URL`.
 
-Это нормальная и распространённая схема: *frontchannel* идёт через публичный URL, *backchannel* — по внутреннему адресу. citeturn0search2turn0search0
+Runtime получает токен по **KEYCLOAK_BASE_URL**. По умолчанию Keycloak использует **KEYCLOAK_EXTERNAL_URL** как `KC_HOSTNAME`, поэтому выдаёт токены с тем же `iss`, который проверяют UniBPM и Engine. [Настройка hostname в Keycloak](https://www.keycloak.org/server/hostname)
 
 ---
 
